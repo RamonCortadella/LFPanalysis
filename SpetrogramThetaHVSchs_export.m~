@@ -17,14 +17,14 @@ for fn = 1:length(d)
     if SplitName{3}(end-5:end-4)=='AC'
 %     myrLfp = resample(Lfp,1,10); % RESAMPLE TO 100 HZ !!!
         ACLfp = Lfp;
-        LfpGeom = zeros([size(Lfp)]);
+    LfpGeom = zeros([size(Lfp)]);
     elseif  SplitName{3}(end-5:end-4)=='DC' 
         DCLfp = Lfp;
-        LfpGeomDC = zeros([size(Lfp)]);
     end
 end
 
 %%
+LfpGeomDC = zeros([size(Lfp)]);
 
 for i = 1:length(Par.AnatGrps)
     for ii = 1:length(Par.AnatGrps(i).Channels)
