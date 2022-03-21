@@ -2,22 +2,22 @@ close('all')
 %% Define settings
 
 directory = '../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/';
-Par =  LoadXml(strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec1AC.xml'));
-FileName = strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec1AC.lfp');
+Par =  LoadXml(strcat(directory,'DatData/Interpolated_NotFilteredLFP_HP_1HzAC_0p005HzDC/NotClippedMap/B13289O14-DH1-Rec2AC.xml'));
+FileName = strcat(directory,'DatData/Interpolated_NotFilteredLFP_HP_1HzAC_0p005HzDC/NotClippedMap/B13289O14-DH1-Rec2DC.dat');
 
 Fs = 651.04166667;
 DownSamp = 1;
 
 Fs = Fs/DownSamp;
 
-Tstab = 1; %Time removed from the beggining to remove artifactual peaks not related to trigger
-TmaxInit = 2000; % Time from the beggining taken to look for start trigger
-TmaxEnd = 2000; % Time from the end taken to look for stop trigger
+Tstab = 60; %Time removed from the beggining to remove artifactual peaks not related to trigger
+TmaxInit = 200; % Time from the beggining taken to look for start trigger
+TmaxEnd = 200; % Time from the end taken to look for stop trigger
 %% get ephys data
 
 % FileName = [d.folder ,'/',d.name];
 LfpDC = LoadBinaryDAT(FileName, [0:255], Par.nChannels,1)';
-SplitName = split(d.name,'-');
+SplitName = split(FileName,'-');
 
 %% remap geometrically
 LfpGeomDC = zeros([size(LfpDC)]);
