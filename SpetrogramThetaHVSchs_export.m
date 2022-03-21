@@ -1,10 +1,12 @@
 close('all')
 %% Define settings
 
-directory = '../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/';
-Par =  LoadXml(strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec9interAC.xml')); %Rec1, Rec2, Rec3,Rec4, Rec5, Rec6, Rec7,Rec8
-d = dir(strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec9inter*.lfp'));%DC-LP30Hz-Notch50-100Hz.dat');
+%directory = '../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/';
+%Par =  LoadXml(strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec9interAC.xml')); %Rec1, Rec2, Rec3,Rec4, Rec5, Rec6, Rec7,Rec8
+%d = dir(strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec9inter*.lfp'));%DC-LP30Hz-Notch50-100Hz.dat');
+Par =LoadXml('/../../storage2/ramon/data/LargeScale/B13289O14-DH2-01551/DatData/Clipped/B13289O14-DH2-Rec1interAC.xml');
 
+d = dir('/../../storage2/ramon/data/LargeScale/B13289O14-DH2-01551/DatData/Clipped/B13289O14-DH2-Rec1inter*C.lfp');
 LFPfs = 651.04166667;
 DownSampDC = 100;
 
