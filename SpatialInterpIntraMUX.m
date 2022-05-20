@@ -1,18 +1,20 @@
 close('all')
 
-Directories = ["../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/DatData/ClippedMapped/B13289O14-DH1-Rec9";];
-            
+Directories = ["../../../data/ASICintraMUX/B13907W21-T1-rat01601/DatData/SIG_040522_B13907W23-M4_InVitro-5-AC";];
+% a(0)  
 for iD = 1:length(Directories)
     Directory = Directories(iD);
-    Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/DatData/ClippedMapped/B13289O14-DH1-Rec9' 'AC.xml']);
-%     Par =  LoadXml(['../../../data/ASIC1024/B14062W18-T1-rat01601/Rec_map_SIG_B14062W18-T1_54_S' '.xml']);
+%     Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/DatData/ClippedMapped/B13289O14-DH1-Rec3' 'AC.xml']);
+    Par =  LoadXml(['../../../data/ASICintraMUX/B13907W21-T1-rat01601/DatData/SIG_040522_B13907W23-M4_InVitro-5-AC' '.xml']);
 
     d = dir(strcat(Directory, '*.dat'));%DC-LP30Hz-Notch50-100Hz.dat');
 
-    LFPFs = 651.04166667;
-    DownFact = 20;
-    Tstab = 60;
+    LFPFs = 1000;
+    DownFact = 100;
+    Tstab = 0;
     NCh = 256;
+    nChRow = 8;
+    nChCol = 32;
     
     %% get ephys data
     ACLfp = [];
@@ -25,33 +27,34 @@ for iD = 1:length(Directories)
 
         SplitName = split(d(fn).name,'-');
         
-        if SplitName{3}(end-5:end-4)=='AC'
+        if SplitName{4}(end-5:end-4)=='AC'
     %     myrLfp = resample(Lfp,1,10); % RESAMPLE TO 100 HZ !!!
             ACLfp = Lfp;
-        elseif  SplitName{3}(end-5:end-4)=='DC' 
-            DCLfp = Lfp;
-        elseif SplitName{3}(end-7:end-4)=='Clip'
-            ClipLfp = Lfp;
+%         elseif  SplitName{3}(end-5:end-4)=='DC' 
+%             DCLfp = Lfp;
+%         elseif SplitName{3}(end-7:end-4)=='Clip'
+%             ClipLfp = Lfp;
         end
     end
 
     %% rearrange and interpolate spatiall
     LfpGeom = zeros([size(ACLfp)]);
-    LfpGeomDC = zeros([size(DCLfp)]);
-    LfpGeomClip2 =  zeros([size(ClipLfp)]);
+%     LfpGeomDC = zeros([size(DCLfp)]);
+    LfpGeomClip2 =  zeros([size(ACLfp)]);
 
     for i = 1:length(Par.AnatGrps)
         for ii = 1:length(Par.AnatGrps(i).Channels)
-            LfpGeom(:,ii+(i-1)*16) = ACLfp(:,Par.AnatGrps(i).Channels(ii)+1);
-            LfpGeomDC(:,ii+(i-1)*16) = DCLfp(:,Par.AnatGrps(i).Channels(ii)+1);
-            LfpGeomClip2(:,ii+(i-1)*16) = logical(ClipLfp(:,Par.AnatGrps(i).Channels(ii)+1));
+            LfpGeom(:,ii+(i-1)*nChCol) = ACLfp(:,Par.AnatGrps(i).Channels(ii)+1);
+%             LfpGeomDC(:,ii+(i-1)*16) = DCLfp(:,Par.AnatGrps(i).Channels(ii)+1);
+            LfpGeomClip2(:,ii+(i-1)*nChCol) = logical(ones([length(LfpGeomClip2(:,1)),1])*Par.AnatGrps(i).Skip(ii));
+            display(Par.AnatGrps(i).Skip(ii))
         end
     end
     
 
     figure()
 
-    LfpStruct = struct('DC',LfpGeomDC, 'AC', LfpGeom);
+    LfpStruct = struct('AC', LfpGeom);
     fn = fieldnames(LfpStruct);
 
     for k=1:numel(fn)
@@ -95,7 +98,7 @@ for iD = 1:length(Directories)
             display(i)
 
             %add only if the indices are valid
-            if (mod(i,16) >= 2) 
+            if (mod(i,nChCol) >= 2) 
                 mask1 = ((1-LfpGeomClip(:,i-1)).*(1-LfpGeomClip(:,i+1)));%this is the mask where the two indices are valid
                 display(max(LfpGeomClip(:,i-1)))
                 display(max(LfpGeomClip(:,i+1)))
@@ -125,8 +128,8 @@ for iD = 1:length(Directories)
                 mask1 = LfpGeomClip(:,19)*0;
                 int1 = mask1;
             end
-            if (floor(i/16) >=1) & (floor(i/16) <= 14) & (mod(i,16)~=0) & (i<=16*7 | i>=16*9+1)
-                mask2 = ((1-LfpGeomClip(:,i-16)).*(1-LfpGeomClip(:,i+16)));
+            if (floor(i/nChCol) >=1) & (floor(i/nChCol) <= nChRow-2) & (mod(i,nChCol)~=0) 
+                mask2 = ((1-LfpGeomClip(:,i-nChCol)).*(1-LfpGeomClip(:,i+nChCol)));
                 ind0 = find(mask2 == 0);
                 if length(ind0)>= 1
                     ind1 = find(ind0 >= floor(Tstab*LFPfs));
@@ -145,15 +148,15 @@ for iD = 1:length(Directories)
                         mask2(ind3) = 0;
                     end
                 end
-                int2 = mask2.*(Lfp(:,i-16)+Lfp(:,i+16))/2;
+                int2 = mask2.*(Lfp(:,i-nChCol)+Lfp(:,i+nChCol))/2;
             else
                 display('in')
 %                 display(min(mask2))
                 mask2 = LfpGeomClip(:,19)*0;
                 int2 = mask2;
             end
-            if (floor(i/16) >=1) & (floor(i/16) <= 14) & (mod(i,16) >= 2) & (i<=16*7 | i>=16*9+1)
-                mask3 = ((1-LfpGeomClip(:,i-16-1)).*(1-LfpGeomClip(:,i+16+1)));
+            if (floor(i/nChCol) >=1) & (floor(i/nChCol) <= nChRow-2) & (mod(i,nChCol) >= 2) 
+                mask3 = ((1-LfpGeomClip(:,i-nChCol-1)).*(1-LfpGeomClip(:,i+nChCol+1)));
                 ind0 = find(mask3 == 0);
                 if length(ind0)>= 1
                     ind1 = find(ind0 >= floor(Tstab*LFPfs));
@@ -172,15 +175,15 @@ for iD = 1:length(Directories)
                         mask3(ind3) = 0;
                     end
                 end
-                int3 = mask3.*(Lfp(:,i-16-1)+Lfp(:,i+16+1))/2;
+                int3 = mask3.*(Lfp(:,i-nChCol-1)+Lfp(:,i+nChCol+1))/2;
             else
                 display('in')
 %                 display(min(mask3))
                 mask3 = LfpGeomClip(:,19)*0;
                 int3 = mask3;
             end
-            if (floor(i/16) >=1) & (floor(i/16) <= 14) & (mod(i,16) >= 2) & (i<=16*7 | i>=16*9+1)
-                mask4 = ((1-LfpGeomClip(:,i+16-1)).*(1-LfpGeomClip(:,i-16+1)));
+            if (floor(i/nChCol) >=1) & (floor(i/nChCol) <= nChRow-2) & (mod(i,nChCol) >= 2)
+                mask4 = ((1-LfpGeomClip(:,i+nChCol-1)).*(1-LfpGeomClip(:,i-nChCol+1)));
                 ind0 = find(mask4 == 0);
                 if length(ind0)>= 1
                     ind1 = find(ind0 >= floor(Tstab*LFPfs));
@@ -198,7 +201,7 @@ for iD = 1:length(Directories)
                         mask4(ind3) = 0;
                     end
                 end
-                int4 = mask4.*(Lfp(:,i+16-1)+Lfp(:,i-16+1))/2;
+                int4 = mask4.*(Lfp(:,i+nChCol-1)+Lfp(:,i-nChCol+1))/2;
             else
                 display('in')
 %                 display(min(mask4))
@@ -232,6 +235,6 @@ for iD = 1:length(Directories)
 
     %%
     SaveBinary(strcat(Directory,'interAC.lfp'), LfpStruct.AC)
-    SaveBinary(strcat(Directory,'interDC.lfp'), LfpStruct.DC)
-    SaveBinary(strcat(Directory,'interClip.lfp'), LfpClipInter)
+%     SaveBinary(strcat(Directory,'interDC.lfp'), LfpStruct.DC)
+%     SaveBinary(strcat(Directory,'interClip.lfp'), LfpClipInter)
 end

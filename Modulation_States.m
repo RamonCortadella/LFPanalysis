@@ -3,12 +3,12 @@
 close('all')
 clearvars
 %% Define settings
-stats = true;
+stats = false;
 
 LFPfs = 651.04166667;
 DownSampDC = 100;
 
-MinDurationState = 200;
+MinDurationState = 100; %Min duration SWS 200s %Min duration REM 55s
 MinDurationStateREM = 55;
 
 timeRes = 10;
@@ -16,30 +16,39 @@ timeResDC = 100;
 
 Fs=LFPfs;
 FsDC = Fs/DownSampDC;
+SpeedDCFact=100;
+SpeedACFact = 1;
 OrderFiltAC = 4;
 OrderFiltDC = 2;
 
 ChIndHVS= 229; % centre of the 9 channels averaged
-ChIndTheta = 93;
+ChIndTheta = 93; % 93 initially used (211 to detect modulation of spindle by ISA)
+ChIndHVS = 229;
 % ChIndTheta = 90;
-FminAC = 2;
-FmaxAC = 10;
-FminDC = 0.05;
-FmaxDC = 0.2;
+FminAC = 8;
+FmaxAC = 16;
+FminDC = 0.02;
+FmaxDC = 0.08;
 SlowDown = 30;
+CnstScale = false;
+GaussianFact= false;
+
+% directory = '../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/';
+% Par =  LoadXml(strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec9interAC.xml')); %Rec1, Rec2, Rec3,Rec4, Rec5, Rec6, Rec7,Rec8
+% videoOutPath = strcat(directory,'MatlabData/Videos/EventExample.avi');
+
 
 directory = '../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/';
-Par =  LoadXml(strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec9interAC.xml')); %Rec1, Rec2, Rec3,Rec4, Rec5, Rec6, Rec7,Rec8
-videoOutPath = strcat(directory,'MatlabData/Videos/EventExample.avi');
-
+Par =  LoadXml(strcat(directory,'DatData/ClippedMapped/B13289O14-DH1-Rec3interAC.xml')); %Rec1, Rec2, Rec3,Rec4, Rec5, Rec6, Rec7,Rec8
+videoOutPath = strcat(directory,'MatlabData/Videos/SWS-ISA-spindle.avi');
 %% Get ephys and states data and organize events ephys 
 
 counter = 0;
 counterREM = 0;
 LfpGeomEvents = {};
 
-for i = [1 2 3 4 5 6 9]
-    d = dir(strcat(directory,'DatData/Clipped/B13289O14-DH1-Rec',int2str(i),'inter*.lfp'));%DC-LP30Hz-Notch50-100Hz.dat');
+for i = [3]
+    d = dir(strcat(directory,'DatData/ClippedMapped/B13289O14-DH1-Rec',int2str(i),'inter*.lfp'));%DC-LP30Hz-Notch50-100Hz.dat');
 
 
     ACLfp = [];
@@ -65,6 +74,7 @@ for i = [1 2 3 4 5 6 9]
         if per(2)-per(1) >= MinDurationState
             counter = counter +1;
             orderVec(counter) = per(2)-per(1);
+                
             if per(1) == 0 
                 continue
             end
@@ -87,8 +97,29 @@ close('all')
 FNi = Fs/2;
 FNiDC = FsDC/2;
 
-fPow = bsxfun(@plus,[2:0.2:20],[-1 1]')'/FNi;
-fPh = bsxfun(@plus,[0.04:0.005:0.2], [-0.015 0.015]')'/FNi;
+%%% THETA modulation of GAMMA
+fPh = [bsxfun(@plus,[1:0.3:10],[-0.3 0.3]')']/FNi;
+fPow = bsxfun(@plus, [15:3:100],[-5 5]')'/FNi;
+
+%%% REM 
+% fPow = [bsxfun(@plus,[1:0.5:15],[-0.3 0.3]')']/FNi;
+% fPh1 = bsxfun(@plus,[0.03:0.01:0.2], [-0.02 0.02]')'/FNi;
+%%% SWS
+% fPow = [bsxfun(@plus,[6:0.3:20],[-1.5 1.5]')']/FNi;
+% fPh = bsxfun(@plus,[0.03:0.01:0.2], [-0.02 0.02]')'/FNi;
+%%% SWS
+% fPow = [bsxfun(@plus,[1:0.3:15],[-0.3 0.3]')']/FNi;
+% fPh = bsxfun(@plus,[0.03:0.01:0.2], [-0.02 0.02]')'/FNi;
+%%% ISA-gamma
+% fPow = bsxfun(@plus,[30:2:70],[-6 6]')'/FNi;
+
+% fPh = [bsxfun(@plus,[1.0:0.3:8],[-0.3 0.3]')']/FNi;
+% fPow = bsxfun(@plus,[2.5:0.3:15],[-1.5 1.5]')'/FNi;
+% fPh = bsxfun(@plus,[3:0.5:17], [-2 2]')'/FNi;
+
+%%%HVS
+% fPow = [bsxfun(@plus,[3:0.5:25],[-1 1]')']/FNi;
+% fPh = bsxfun(@plus,[0.05:0.01:0.3], [-0.02 0.02]')'/FNi;
 
 M = [-32 -16 0 16 32] + [-2 -1 0 1 2]';
 ChIndThetaList= ChIndTheta  + M;
@@ -97,7 +128,7 @@ ChIndThetaList= ChIndTheta  + M;
 if stats == false
     figure
     for i = 1:counter
-        EventDC2 = Interpolate([TimeDC{sortInd(i)}', mean(LfpGeomEventsDC{sortInd(i)}(:,ChIndThetaList),2)-LfpGeomEventsDC{sortInd(i)}(:,1)], TimeAC{sortInd(i)},'trim','off');
+        EventDC2 = Interpolate([TimeDC{sortInd(i)}', mean(LfpGeomEventsDC{sortInd(i)}(:,ChIndThetaList),2)], TimeAC{sortInd(i)},'trim','off');
         indexNaN = find(isnan(EventDC2(:,2)));
         EventDC = EventDC2(1:indexNaN-1,2);
 
@@ -116,18 +147,18 @@ if stats == false
     p = pcolor(out.fPh(1:end)*FNi, out.fPow*FNi, mean(RampStack,3)'); p.FaceColor='interp'; shading flat; 
     colorbar
 
-    ECoG2Video(LfpGeomEventsAC{sortInd(i)}, LfpGeomEventsDC{sortInd(i)}, videoOutPath, Fs, DownSampDC, FminAC, FmaxAC, FminDC, FmaxDC, OrderFiltAC, OrderFiltDC, SlowDown)
+    ECoG2Video(LfpGeomEventsAC{sortInd(i)}, LfpGeomEventsDC{sortInd(i)}, videoOutPath, Fs, 100, SpeedDCFact,SpeedACFact, FminAC, FmaxAC, FminDC, FmaxDC, OrderFiltAC, OrderFiltDC, SlowDown,CnstScale, GaussianFact)
 else
 %% compute the modulation of all concatenated events
     Shuffle.MaxShift= 100*100/10; % after 10 times resampling will have 50sec shift.
-    Shuffle.Type = 'random'; Shuffle.nShuffle = 5000;
+    Shuffle.Type = 'shift'; Shuffle.nShuffle = 50;
 
     figure
     for i = 1:counter
         EventDC2 = Interpolate([TimeDC{sortInd(i)}', mean(LfpGeomEventsDC{sortInd(i)}(:,ChIndThetaList),2)], TimeAC{sortInd(i)},'trim','off');
         indexNaN = find(isnan(EventDC2(:,2)));
         EventDC = EventDC2(1:indexNaN-1,2);
-
+        display(i);
         if i == 1
             EventStackDC = EventDC';
             EventStackAC = mean(LfpGeomEventsAC{sortInd(i)}(1:indexNaN-1,ChIndThetaList),2)';
@@ -142,25 +173,46 @@ else
 end
 % 
 figure
-p = pcolor(out4sh.fPh(1:end)*FNi, out4sh.fPow*FNi, out4sh.Ramp'); p.FaceColor='interp'; shading flat; 
+p = pcolor(out4sh.fPh(2:end)*FNi, out4sh.fPow*FNi, out4sh.Ramp(2:end,:)'); p.FaceColor='interp'; shading flat; 
 colorbar
 
 figure
-p = pcolor(out4sh.fPh(1:end)*FNi, out4sh.fPow*FNi, out4sh.Rpval'); p.FaceColor='interp'; shading flat; 
+p = pcolor(out4sh.fPh(2:end)*FNi, out4sh.fPow*FNi, out4sh.Rpval(2:end,:)'); p.FaceColor='interp'; shading flat; 
 colorbar
 caxis([0 0.01])
 
 figure
 inds = find(out4sh.Rpval ~= 0);
 out4sh.Ramp(inds) = NaN;
-p=pcolor(out4sh.fPh(1:end)*FNi, out4sh.fPow*FNi, out4sh.Ramp'); p.FaceColor='interp'; shading flat; 
+p=pcolor(out4sh.fPh(2:end)*FNi, out4sh.fPow*FNi, out4sh.Ramp(2:end,:)'); p.FaceColor='interp'; shading flat; 
 colorbar
 set(gca,'Color',uint8([170 170 170]))
 
 %% plot polar distribution and phase
-% figure(3)
-% polarplot(out.phbins(:,1,1),sq(out.pow_dens(:,10,19))'); axis tight; box off
+figure(3)
+polarplot(out4sh.phbins(:,1,1),mean(mean(sq(out4sh.pow_dens(:,14:15,27:29)),2),3)'); axis tight; box off
 
+figure
+
+% for i = 13:19
+    
+polarplot(out4sh.phbins(:,1,1),sq(out4sh.pow_dens(:,14,27:29))'); axis tight; box off
+
+[MaxMod, phInd] = max(out4sh.pow_dens);
+
+for iph =1:length(out4sh.pow_dens(1,:,1))
+    for ipow = 1:length(out4sh.pow_dens(1,1,:))
+        PrefPh(iph,ipow) = out4sh.phbins(phInd(1,iph,ipow));
+    end
+end
+
+figure
+p=pcolor(out4sh.fPh*FNi, out4sh.fPow*FNi, PrefPh'); p.FaceColor='interp'; shading flat; 
+colormap jet
+caxis([-3 3])
+colorbar
+
+% end
 % ph = angle(hilbert(ButFilter(EventDC, 2, fPh(3,:), 'bandpass')));
 % hold on
 % plot(EventDC2(1:indexNaN-1,1),ph)

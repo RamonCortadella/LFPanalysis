@@ -161,7 +161,7 @@ sleep_dc1 = rdc100f(In,:);
 
 fPow1 = [bsxfun(@plus,[1:0.5:15],[-0.3 0.3]')']/50;
 fPh1 = bsxfun(@plus,[0.03:0.02:0.2], [-0.02 0.02]')'/50;
-%[out2] = PowerPhasePairs(sleep_dc1,  fPh1, myrLfpAll , fPow1,1,'but',@PowerModulation);
+[out2] = PowerPhasePairs(sleep_dc1,  fPh1, myrLfpAll , fPow1,1,'but',@PowerModulation);
 
 Shuffle.MaxShift= 100*100/10; % after 10 times resampling will have 50sec shift.
 Shuffle.Type = 'shift'; Shuffle.nShuffle = 1000;

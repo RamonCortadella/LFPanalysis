@@ -1,7 +1,7 @@
 close('all')
 
 
-Directories = ["../DatData/Clipped/B13289O24-DH1SL7-Rec5";];
+Directories = ["../../../data/LargeScale/B13289O24-DH1-01604/DatData/ClippedMapped/B13289O24-DH1SL7-Rec3";];
 %                 "../DatData/Clipped/B13289O24-DH1SL7-Rec5";];
 %                 "../DatData/Clipped/B13289O14O23-DH3SL5-Rec3";
 %                 "../DatData/Clipped/B13289O14O23-DH3SL5-Rec4";
@@ -12,12 +12,12 @@ Directories = ["../DatData/Clipped/B13289O24-DH1SL7-Rec5";];
 %                 "../DatData/Clipped/B13289O14-DH1-Rec9"
 for iD = 1:length(Directories)
     Directory = Directories(iD);
-    Par =  LoadXml(['../DatData/Clipped/B13289O24-DH1SL7-Rec3' 'AC.xml']);
+    Par =  LoadXml(['../../../data/LargeScale/B13289O24-DH1-01604/DatData/ClippedMapped/B13289O24-DH1SL7-Rec3' 'AC.xml']);
 
     d = dir(strcat(Directory, '*.dat'));%DC-LP30Hz-Notch50-100Hz.dat');
 
     LFPFs = 651.04166667;
-    DownFact = 100;
+    DownFact = 20;
     Tstab = 60;
     %% get ephys data
     ACLfp = [];
@@ -40,7 +40,7 @@ for iD = 1:length(Directories)
         end
     end
 
-    %% rearrange and interpolate spatiall
+    %% rearrange and interpolate spatially
     LfpGeom = zeros([size(ACLfp)]);
     LfpGeomDC = zeros([size(DCLfp)]);
     LfpGeomClip2 =  zeros([size(ClipLfp)]);
@@ -63,8 +63,8 @@ for iD = 1:length(Directories)
                 if ii>=9
                     continue
                 end
-                LfpGeomDepthAC(:,ii+(counter-1)*8) = ACLfp(:,Par.AnatGrps(i).Channels(PositionDepth(ii))+1);
-                LfpGeomDepthDC(:,ii+(counter-1)*8) = DCLfp(:,Par.AnatGrps(i).Channels(PositionDepth(ii))+1);
+                LfpGeomDepthAC(:,counter+(ii-1)*4) = ACLfp(:,Par.AnatGrps(i).Channels(PositionDepth(ii))+1);
+                LfpGeomDepthDC(:,counter+(ii-1)*4) = DCLfp(:,Par.AnatGrps(i).Channels(PositionDepth(ii))+1);
             else         
                 LfpGeomClip2(:,ii+(i-1)*16) = logical(ClipLfp(:,Par.AnatGrps(i).Channels(ii)+1));
             end
@@ -77,6 +77,9 @@ for iD = 1:length(Directories)
     fn = fieldnames(LfpStruct);
 
     for k=1:numel(fn)
+        if fn{k}=='AC'
+            continue
+        end
         Lfp = LfpStruct.(fn{k});
         
         if fn{k} == 'DC'
