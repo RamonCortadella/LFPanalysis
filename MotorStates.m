@@ -1,0 +1,210 @@
+function [Periods, StateMap, StateTitle] = MotorStates(v,velocity,duration,Fs, FallAsleepT, MinSleepDuration, brief)
+%
+%MotorStates - Find periods of run, quiet and sleep states.
+%
+%This function is an extended version of the function QuietPeriods from the FMAToolbox (Michaël Zugaro).
+%
+%  Find periods of running and immobility, i.e. periods of sufficient duration
+%  where instantaneous linear velocity remains low. Brief movements can be ignored. 
+%  Then, the detected immobility periods are classified based on their duration as either 
+%  'quiet'(short immobility) or 'sleep' (long immobility) periods.
+%
+%  USAGE
+%
+%    [Periods, BinMaps] = MotorStates(v,velocity,duration,brief,MinSleepDuration)
+%
+%    v              linear velocity samples [t v]
+%    velocity       maximum velocity of a quiet period
+%    duration       minimum duration of a quiet period
+%    MinSleepDuration  minimum duration of an immobility period to be classified 
+%                      as a sleep period. Default=20 sec.
+%    Fs             Sampling frequency Mocap
+%    FallSleepT     Time required to fall asleep after motion stops
+%    brief          optional maximum duration of a 'brief' movement
+%
+%  OUTPUT
+%    Periods    a 1x3 cell vector, where each cell contains a list of [start stop] pairs 
+%               for periods of RUN, QUIET and SLEEP motor states.
+%    StateMap   a list of labeles of a motor state the animal is in at each time moment
+%               (1-RUN, 2-QUIET, 3-SLEEP).
+%
+%  SEE
+%    See also BrainStates, PlotIntervals.
+% 
+% Copyright (C) 2008 QuietPeriods by Michaël Zugaro
+%               2016 MotorStates by Evgeny Resnik
+%TO DO:
+% Segmentation not only by animal speed, but also by accelerometer signal
+
+
+if nargin == 6,
+    brief = 0;
+    MinSleepDuration = MinSleepDuration; %sec
+elseif  nargin == 7,
+    MinSleepDuration = MinSleepDuration; %sec
+end
+
+
+% Ensure that all input parameters are columns
+if size(v,1)==2
+    v=v';
+end
+
+
+% Determine beginning/end of immobility periods
+below = v(:,2) < velocity;
+crossings = diff(below); % yields -1 for upward crossings, and 1 for downward crossings
+start = find(crossings == 1);
+stop = find(crossings == -1);
+
+% The previous code would ignore immobility periods beginning at the first sample, or ending at the last sample; correct for this
+if below(1)==1
+	start = [1;start];
+end
+if below(end)==1
+	stop = [stop;length(below)];
+end
+
+% Determine durations of movements between the detected immobility periods, and discard brief ones
+durations = v(start(2:end),1) - v(stop(1:end-1),1);
+ignore = find(durations <= brief);
+start(ignore+1) = [];
+stop(ignore) = [];
+
+% Keep only long enough immobility periods
+durations = v(stop,1)-v(start,1);
+discard = find(durations < duration);
+start(discard) = [];
+stop(discard) = [];
+
+
+%NEW: Classify immobility periods based on their duration
+durations = v(stop,1)-v(start,1);
+
+
+%Output: Quiet periods
+
+quiet_per = find(durations < MinSleepDuration);
+QuietPeriods = [v(start(quiet_per),1) v(stop((quiet_per)),1)];
+clear QuietBinMap
+QuietBinMap = zeros(size(v,1),2);
+QuietBinMap(:,1) = v(:,1);
+for i = 1:length(quiet_per)
+	QuietBinMap(start(quiet_per(i)):stop(quiet_per(i)),2) = 1;
+end
+
+%Output: Sleep periods
+sleep_per = find(durations >= MinSleepDuration);
+SleepPeriods = [v(start(sleep_per),1)+floor(FallAsleepT*Fs)/Fs v(stop((sleep_per)),1)];
+QuietPeriods = [QuietPeriods;[v(start(sleep_per),1) v(start(sleep_per),1)+floor(FallAsleepT*Fs)/Fs]];
+clear SleepBinMap
+SleepBinMap = zeros(size(v,1),2);
+SleepBinMap(:,1) = v(:,1);
+for i = 1:length(sleep_per)
+	SleepBinMap(start(sleep_per(i))+floor(FallAsleepT*Fs)+1:stop(sleep_per(i)),2) = 1;
+    QuietBinMap(start(sleep_per(i)):start(sleep_per(i))+floor(FallAsleepT*Fs),2) = 1;
+end
+
+%Compute run periods as a setdiff with quiet and sleep periods
+clear RunBinMap
+RunBinMap(:,1) = v(:,1);
+RunBinMap(:,2) = 1;
+RunBinMap(logical(QuietBinMap(:,2)),2) = 0;
+RunBinMap(logical(SleepBinMap(:,2)),2) = 0;
+out = contiguous(RunBinMap(:,2),1);
+t_spd = v(:,1);
+RunPer = t_spd(out{1,2});
+clear out t_spd
+
+% figure
+% subplot(211); cla; hold on
+% plot(v(:,1), v(:,2))
+% axis tight
+% PlotIntervals(RunPer, 'bars');
+
+
+
+%Use a new output format
+StateTitle = {'RUN','QUIET','SLEEP'};
+Periods{1} = RunPer;
+Periods{2} = QuietPeriods;
+Periods{3} = SleepPeriods;
+StateMap = zeros(size(v,1),1);
+StateMap(logical(RunBinMap(:,2)))   = 1;
+StateMap(logical(QuietBinMap(:,2))) = 2;
+StateMap(logical(SleepBinMap(:,2))) = 3;
+
+
+
+
+
+
+
+
+%-----------------------------------------------------------------------------%
+%           Supplementary functions to stay independent from the labbox
+%-----------------------------------------------------------------------------%
+
+% function runs = contiguous(A,varargin)
+% %   RUNS = CONTIGUOUS(A,NUM) returns the start and stop indices for contiguous 
+% %   runs of the elements NUM within vector A.  A and NUM can be vectors of 
+% %   integers or characters.  Output RUNS is a 2-column cell array where the ith 
+% %   row of the first column contains the ith value from vector NUM and the ith 
+% %   row of the second column contains a matrix of start and stop indices for runs 
+% %   of the ith value from vector NUM.    These matrices have the following form:
+% %  
+% %   [startRun1  stopRun1]
+% %   [startRun2  stopRun2]
+% %   [   ...        ...  ]
+% %   [startRunN  stopRunN]
+% %
+% %   Example:  Find the runs of '0' and '2' in vector A, where
+% %             A = [0 0 0 1 1 2 2 2 0 2 2 1 0 0];  
+% %    
+% %   runs = contiguous(A,[0 2])
+% %   runs = 
+% %           [0]    [3x2 double]
+% %           [2]    [2x2 double]
+% %
+% %   The start/stop indices for the runs of '0' are given by runs{1,2}:
+% %
+% %           1     3
+% %           9     9
+% %          13    14
+% %
+% %   RUNS = CONTIGUOUS(A) with only one input returns the start and stop
+% %   indices for runs of all unique elements contained in A.
+% %
+% %   CONTIGUOUS is intended for use with vectors of integers or characters, and 
+% %   is probably not appropriate for floating point values.  You decide.  
+% %
+% 
+% if prod(size(A)) ~= length(A),
+%     error('A must be a vector.')
+% end
+% 
+% if isempty(varargin),
+%     num = unique(A);
+% else
+%     num = varargin{1};
+%     if prod(size(num)) ~= length(num),
+%         error('NUM must be a scalar or vector.')
+%     end
+% end
+% 
+% for numCount = 1:length(num),
+%     
+%     indexVect = find(A(:) == num(numCount));
+%     shiftVect = [indexVect(2:end);indexVect(end)];
+%     diffVect = shiftVect - indexVect;
+%     
+%     % The location of a non-one is the last element of the run:
+%     transitions = (find(diffVect ~= 1));
+%     
+%     runEnd = indexVect(transitions);
+%     runStart = [indexVect(1);indexVect(transitions(1:end-1)+1)];
+%     
+%     runs{numCount,1} = num(numCount);
+%     runs{numCount,2} = [runStart runEnd];
+%     
+% end

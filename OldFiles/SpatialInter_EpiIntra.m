@@ -1,19 +1,26 @@
 close('all')
 
 
-Directories = ["../../../data/LargeScale/B13289O24-DH1-01604/DatData/ClippedMapped/B13289O24-DH1SL7-Rec3";];
-%                 "../DatData/Clipped/B13289O24-DH1SL7-Rec5";];
-%                 "../DatData/Clipped/B13289O14O23-DH3SL5-Rec3";
-%                 "../DatData/Clipped/B13289O14O23-DH3SL5-Rec4";
-%                 "../DatData/Clipped/B13289O14O23-DH3SL5-Rec5";
-%                 "../DatData/Clipped/B13289O14O23-DH3SL5-Rec6";
-%                 "../DatData/Clipped/B13289O14-DH1-Rec7";
-%                 "../DatData/Clipped/B13289O14-DH1-Rec8";
-%                 "../DatData/Clipped/B13289O14-DH1-Rec9"
+Directories = [
+               "../../../../data/LargeScale/B13289O24-DH1-01604/DatData/CorrectedTriggerFastMedian/B13289O24-DH1SL7-Rec3AC";
+               "../../../../data/LargeScale/B13289O24-DH1-01604/DatData/CorrectedTriggerFastMedian/B13289O24-DH1SL7-Rec4AC";
+               "../../../../data/LargeScale/B13289O24-DH1-01604/DatData/CorrectedTriggerFastMedian/B13289O24-DH1SL7-Rec5AC";
+               "../../../../data/LargeScale/B13289O24-DH1-01604/DatData/CorrectedTriggerFastMedian/B13289O24-DH1SL7-Rec1AC";
+                ];
 for iD = 1:length(Directories)
     Directory = Directories(iD);
-    Par =  LoadXml(['../../../data/LargeScale/B13289O24-DH1-01604/DatData/ClippedMapped/B13289O24-DH1SL7-Rec3' 'AC.xml']);
-
+    if iD==1
+        Par =  LoadXml(['../../../../data/LargeScale/B13289O24-DH1-01604/DatData/CorrectedTriggerFastMedian/B13289O14-DH1SL7-Rec3' 'AC.xml']);
+    end
+    if iD==2
+        Par =  LoadXml(['../../../../data/LargeScale/B13289O24-DH1-01604/DatData/CorrectedTriggerFastMedian/B13289O14-DH1SL7-Rec4' 'AC.xml']);
+    end
+    if iD==3
+        Par =  LoadXml(['../../../../data/LargeScale/B13289O24-DH1-01604/DatData/CorrectedTriggerFastMedian/B13289O14-DH1SL7-Rec5' 'AC.xml']);
+    end
+    if iD==4
+        Par =  LoadXml(['../../../../data/LargeScale/B13289O24-DH1-01604/DatData/CorrectedTriggerFastMedian/B13289O14-DH1SL7-Rec1' 'AC.xml']);
+    end
     d = dir(strcat(Directory, '*.dat'));%DC-LP30Hz-Notch50-100Hz.dat');
 
     LFPFs = 651.04166667;
@@ -46,6 +53,7 @@ for iD = 1:length(Directories)
     LfpGeomClip2 =  zeros([size(ClipLfp)]);
     LfpGeomDepthAC = zeros([length(ACLfp) 32]);
     LfpGeomDepthDC = zeros([length(DCLfp) 32]);
+    LfpGeomDepthClip = zeros([length(DCLfp) 32]);
     
     counter = 0;
     PositionDepth = [7 6 5 8 3 4 1 2];
@@ -65,12 +73,23 @@ for iD = 1:length(Directories)
                 end
                 LfpGeomDepthAC(:,counter+(ii-1)*4) = ACLfp(:,Par.AnatGrps(i).Channels(PositionDepth(ii))+1);
                 LfpGeomDepthDC(:,counter+(ii-1)*4) = DCLfp(:,Par.AnatGrps(i).Channels(PositionDepth(ii))+1);
+                LfpGeomDepthClip(:,counter+(ii-1)*4) = logical(ClipLfp(:,Par.AnatGrps(i).Channels(ii)+1)+Par.AnatGrps(i).Skip(ii));
             else         
-                LfpGeomClip2(:,ii+(i-1)*16) = logical(ClipLfp(:,Par.AnatGrps(i).Channels(ii)+1));
+                LfpGeomClip2(:,ii+(i-1)*16) = logical(ClipLfp(:,Par.AnatGrps(i).Channels(ii)+1)+Par.AnatGrps(i).Skip(ii));
+
             end
         end
     end
-
+%     interpolate depth probe
+    for i=1:32
+        if (i>=1 & i<=31)
+            if LfpGeomDepthClip(1,i)==1
+                LfpGeomDepthAC(:,i) = (LfpGeomDepthAC(:,i-1) + LfpGeomDepthAC(:,i+1))/2;
+                LfpGeomDepthDC(:,i) = (LfpGeomDepthDC(:,i-1) + LfpGeomDepthDC(:,i+1))/2;
+            end
+        end
+    end
+    
     figure()
 
     LfpStruct = struct('DC',LfpGeomDC, 'AC', LfpGeom);

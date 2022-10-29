@@ -1,0 +1,32 @@
+function TriggerTime = FindTrigger(Lfp, Fs, Tstab, TmaxIni,TmaxEnd, PathOutput)
+% this function finds a voltage peak in the signal corresponding to a
+% trigger. 
+
+%- Tstab is the period in seconds ignored at the beginning of the recording
+%- TmaxInit is the maximum time at the beginning in which the trigger is
+%searched
+%- TmaxEnd is the period to the end in which the trigger is searched
+
+figure()
+
+time = [1:1:length(Lfp(:,1))]/Fs;
+plot(time(Tstab*floor(Fs):TmaxInit*floor(Fs)), Lfp(Tstab*floor(Fs):TmaxInit*floor(Fs),81))
+plot(time(end-TmaxEnd*floor(Fs):end), Lfp(end-TmaxEnd*floor(Fs):end,81))
+hold off
+
+SigStart = Lfp(Tstab*floor(Fs):TmaxInit*floor(Fs),81);
+
+
+indexTrigger = find(abs(SigStart)==max(abs(SigStart)));
+indexTrigger = indexTrigger(1);
+
+MocapStart = time(Tstab*floor(Fs)+indexTrigger);
+
+display(Lfp(Tstab*floor(Fs)+indexTrigger-1,81))
+
+indexTrigger = find(abs(Lfp(end-TmaxEnd*floor(Fs):end,81))==max(abs(Lfp(end-TmaxEnd*floor(Fs):end,81))));
+indexTrigger = indexTrigger(1);
+
+MocapEnd = time(indexTrigger-1+length(Lfp(:,81))-TmaxEnd*floor(Fs));
+
+display(Lfp(indexTrigger-1+length(Lfp(:,81))-TmaxEnd*floor(Fs),81))

@@ -60,24 +60,16 @@ function [Periods StateMap,Broken]= LoadMocap(FileName, InputPath, OutputPath, v
 % 
     figure()
     hold on
-    
-%     PerQui= unique(PerQui);
-    sQui = size(PerQui);
-    if sQui(1)>1 | sQui(2)>1
-        for i = 1:length(PerQui)
-            
-            display(PerQui)
-            display(i)
-            n(i) = area([PerQui(i,1) PerQui(i,2)],[1 1]);
-            n(i).FaceColor = [0 1 0];
-            n(i).LineStyle = 'none';
+    for i = 1:length(PerQui)
+        display(i)
+        n(i) = area([PerQui(i,1) PerQui(i,2)],[1 1]);
+        n(i).FaceColor = [0 1 0];
+        n(i).LineStyle = 'none';
 
-            n(i).FaceAlpha = 0.2;
-        end
+        n(i).FaceAlpha = 0.2;
     end
-%     PerRun= unique(PerRun);
-    sRun = size(PerRun);
-    if sRun(1)>1 | sRun(2)>1
+end
+    if length(PerRun)>1
         for i = 1:length(PerRun)
             display([PerRun(i,1) PerRun(i,2)])
             g(i) = area([PerRun(i,1) PerRun(i,2)],[1 1]);
@@ -86,11 +78,10 @@ function [Periods StateMap,Broken]= LoadMocap(FileName, InputPath, OutputPath, v
             g(i).FaceAlpha = 0.2;
         end
     end
-    
-%     PerSle= unique(PerSle);
-    sSle = size(PerSle);
-    if sSle(1)>1 | sSle(2)>1
+    if length(PerSle)>1
         for i = 1:length(PerSle)
+
+            display([PerSle(i,1) PerSle(i,2)])
             h(i) = area([PerSle(i,1) PerSle(i,2)],[1 1]);
             h(i).FaceColor = [0 0 1];
             h(i).LineStyle = 'none';

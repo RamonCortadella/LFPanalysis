@@ -1,16 +1,64 @@
 close('all')
+close('all')
 
-Directories = ["../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/DatData/ClippedMapped/B13289O14-DH1-Rec9";];
+Directories = ["../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec1";
+               "../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec2";
+               "../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec3";
+               "../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec4";
+               "../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec11";
+               "../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec12";];
+%                "../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec7";
+%                "../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec8";
+%                "../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec9";
+%                "../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec10";
+%                "../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec11";
+%                "../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec13"];
             
 for iD = 1:length(Directories)
     Directory = Directories(iD);
-    Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/Day1-09_10-12-21/DatData/ClippedMapped/B13289O14-DH1-Rec9' 'AC.xml']);
+    
+    if iD==1
+        Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec1' 'AC.xml']);
+    end
+    if iD==2
+        Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec2' 'AC.xml']);
+    end
+    if iD==3
+        Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec3' 'AC.xml']);
+    end
+    if iD==4
+        Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec4' 'AC.xml']);
+    end
+    if iD==5
+        Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec11' 'AC.xml']);
+    end
+    if iD==6
+        Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH2-01551/DatData/CorrectedTriggerFastMedian/B13289O14-DH2-Rec12' 'AC.xml']);
+    end
+%     if iD==7
+%         Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec7' 'AC.xml']);
+%     end
+%     if iD==8
+%         Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec8' 'AC.xml']);
+%     end
+%     if iD==9
+%         Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec9' 'AC.xml']);
+%     end
+%     if iD==10
+%         Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec10' 'AC.xml']);
+%     end
+%     if iD==11
+%         Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec11' 'AC.xml']);
+%     end
+%     if iD==13
+%         Par =  LoadXml(['../../../data/LargeScale/B13289O14-DH1-01463/DatData/CorrectedTriggerFastMedian/B13289O14-DH1-Rec13' 'AC.xml']);
+%     end
 %     Par =  LoadXml(['../../../data/ASIC1024/B14062W18-T1-rat01601/Rec_map_SIG_B14062W18-T1_54_S' '.xml']);
 
     d = dir(strcat(Directory, '*.dat'));%DC-LP30Hz-Notch50-100Hz.dat');
 
     LFPFs = 651.04166667;
-    DownFact = 20;
+    DownFact = 10;
     Tstab = 60;
     NCh = 256;
     
@@ -44,7 +92,7 @@ for iD = 1:length(Directories)
         for ii = 1:length(Par.AnatGrps(i).Channels)
             LfpGeom(:,ii+(i-1)*16) = ACLfp(:,Par.AnatGrps(i).Channels(ii)+1);
             LfpGeomDC(:,ii+(i-1)*16) = DCLfp(:,Par.AnatGrps(i).Channels(ii)+1);
-            LfpGeomClip2(:,ii+(i-1)*16) = logical(ClipLfp(:,Par.AnatGrps(i).Channels(ii)+1));
+            LfpGeomClip2(:,ii+(i-1)*16) = logical(ClipLfp(:,Par.AnatGrps(i).Channels(ii)+1)+Par.AnatGrps(i).Skip(ii));
         end
     end
     

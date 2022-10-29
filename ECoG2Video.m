@@ -66,8 +66,8 @@ tax = [1:stop]*1000/Fs;
 [bX, bY]= meshgrid([1:nChRow]',[1:nChCol]');
 figure(110);clf
 ax1 = subplot(4,4,[1:2 5 6]);
-imagesc(tax,[],LfpSpindle(1:end,:)'); caxis([-1500 1500]);
-caxis([-0.6*abs(min(min(LfpSpindle(1:end,:)))) 0.6*abs(max(max(LfpSpindle(1:end,:))))])
+imagesc(tax,[],LfpSpindle(1:end,:)'); caxis([-1000 1000]);
+% caxis([-0.6*abs(min(min(LfpSpindle(1:end,:)))) 0.6*abs(max(max(LfpSpindle(1:end,:))))])
 %imagescnan(lsegdat',[-1 1]*4000);
 tax = [1:size(LfpSpindle,1)]*1000/Fs;
 h = Lines(tax(1),[],'k');
@@ -149,14 +149,14 @@ for k=start:SpeedACFact:stop%size(LfpGeom(:,1),1)
         imagesc(bF);
         pbaspect(ax4,[2,4,1])  
     else
-        ax4 = subplot(4,4,[3:4 7 8 11]);cla
+        ax4 = subplot(4,4,[3:4 7 8]);cla
         imagesc(bF);
         pbaspect(ax4,[2,2,1])   
     end
 
     if CnstScale == true
 %         caxis([-0.3*abs(min(min(LfpSpindle(1:end,:)))) 0.3*abs(min(min(LfpSpindle(1:end,:))))])
-        caxis([-500 500]);
+        caxis([-100 100]);
     else
         caxis(prctile(bF(:),[1 99])); 
     end
@@ -185,7 +185,7 @@ for k=start:SpeedACFact:stop%size(LfpGeom(:,1),1)
         pbaspect(ax5,[2,2,1])
         if CnstScale == true
 %             caxis([-0.2*abs(min(min(LfpISA(1:end,:)))) 0.2*abs(max(max(LfpISA(1:end,:))))])
-            caxis([-500 500]);
+            caxis([-100 100]);
         else
             caxis(prctile(bF(:),[1 99]));    
         end

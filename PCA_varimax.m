@@ -45,7 +45,7 @@ end
 
 [coeff, Data_PCA,latent,tsquared,explained,mu] = pca(LfpGeom, 'NumComponents', q);
 
-% B = ROTATEFACTORS(coeff, 'Method','varimax');
+B = ROTATEFACTORS(coeff, 'Method','varimax');
 
 
 [bX, bY]= meshgrid([1:nCols]',[1:nRows]');

@@ -51,8 +51,8 @@ end
 [bX, bY]= meshgrid([1:nCols]',[1:nRows]');
 v = reshape(bX,[],1);
 w = reshape(bY,[],1);
-for i = 1:12
-    subplot(10,10,i)
+for i = 1:q
+    subplot(floor(sqrt(q))+1,floor(sqrt(q)),i)
     F=  scatteredInterpolant(v,w,coeff(:,i));
     bF = F(bX,bY);
     pcolor(bF)

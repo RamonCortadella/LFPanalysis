@@ -205,13 +205,17 @@ if MinTimeRatio >= t(2)-t(1)
     map = map2';
 end
 
-
-
+if length(run')>length(map)
+    map= [map; zeros([length(run')-length(map), 1])];
+else
+    run= [run, zeros([length(map)-length(run'), 1])];
+end
 %Create binary maps of the brain states
 if IfMotorDataAvailable==1
-    display(size(run'))
-    display(size(map))
+    display(length(run'))
+    display(length(map))
     %THETA state periods: high theta/delta ratio periods during RUN
+    
     theta = run' & map;
 
     
