@@ -300,18 +300,19 @@ function ReturnTrigger = BrainStates(OutPathBrainStates, FileName, MotorState,Sp
                     break
                 end
                 %\
-
-                % remove NThe periods between the merged THE
-                indexSWS = find((PerSWS(:,1)>=PerNThe(i,1) & PerSWS(:,1)<=PerNThe(i,2)));
-                display('these are the indices')
-                display(indexSWS)
-                PerSWS(indexSWS,:) = [];
+                if sSWS(1)>=2 | sSWS(2)>=2
+                    % remove NThe periods between the merged THE
+                    indexSWS = find((PerSWS(:,1)>=PerNThe(i,1) & PerSWS(:,1)<=PerNThe(i,2)));
+                    display('these are the indices')
+                    display(indexSWS)
+                    PerSWS(indexSWS,:) = [];
+                end
             %         
-            %        
-                indexTHE = find((PerTHE(:,1)>=PerNThe(i,1) & PerTHE(:,1)<=PerNThe(i,2)));
-                PerTHE(indexTHE,:) = [];
-                display(indexTHE)
-
+                if sREM(1)>=2 | sREM(2)>=2     
+                    indexTHE = find((PerTHE(:,1)>=PerNThe(i,1) & PerTHE(:,1)<=PerNThe(i,2)));
+                    PerTHE(indexTHE,:) = [];
+                    display(indexTHE)
+                end
 
             end
             if i >= lenPerNThe-1-counter2
@@ -538,4 +539,5 @@ function ReturnTrigger = BrainStates(OutPathBrainStates, FileName, MotorState,Sp
 
     savefig(strcat(OutPathBrainStates,'figures/',fn{1},'-',fn{2},'-',rn{1},'-FigHVSs.fig'));
     save(strcat(OutPathBrainStates,fn{1},'-',fn{2},'-',rn{1},'-PerStates.mat'),'PerStates')
+    
     

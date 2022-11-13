@@ -101,9 +101,12 @@ clear SleepBinMap
 SleepBinMap = zeros(size(v,1),2);
 SleepBinMap(:,1) = v(:,1);
 for i = 1:length(sleep_per)
+    display(start,'start')
+    display(stop,'stop')
 	SleepBinMap(start(sleep_per(i))+floor(FallAsleepT*Fs)+1:stop(sleep_per(i)),2) = 1;
     QuietBinMap(start(sleep_per(i)):start(sleep_per(i))+floor(FallAsleepT*Fs),2) = 1;
 end
+% display(sleep_per,'sleep_per')
 
 %Compute run periods as a setdiff with quiet and sleep periods
 clear RunBinMap

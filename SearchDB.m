@@ -1,0 +1,54 @@
+function [recs, val, ind, T] = SearchDB(MetaDataBase, varargin)
+%function out = FunctionName(FileBase ,fMode, Arg1, Arg2)
+%here is the help message :
+[Queries] = DefaultArgs(varargin,{{}});
+
+
+fn = fieldnames(Queries);
+
+%load MetaDataBase  and apply queries/return selected files
+T = readtable(MetaDataBase);
+T = rmmissing(T);
+
+for i = 1:length(fn)
+    
+    if isa(T.(fn{i})(1),'float')
+%         display(Queries.(fn{i}),'Query')
+%         display(T.(fn{i}){1},'Name')
+%         display(fn{i})
+        if strcmp(class(Queries.(fn{i})),'cell')
+            ind = find(table2array(T(:,fn(i)))~=Queries.(fn{i}));
+        else
+            ind = find(table2array(T(:,fn(i)))==Queries.(fn{i})); 
+        end
+%         display(ind)
+%         display(i)
+    else
+%         display(Queries.(fn{i}),'Query')
+%         display(T.(fn{i}){1},'Name')
+        ind = [];
+        for ii = 1:length(T.(fn{i}))
+            if strcmp(class(Queries.(fn{i})),'cell')
+                if strcmp(T.(fn{i}){ii},Queries.(fn{i})(2))
+                    continue
+                else
+                    ind=[ind,ii];
+                end
+            else
+                if strcmp(T.(fn{i}){ii},Queries.(fn{i}))
+                    ind=[ind,ii];
+                end
+            end
+        end
+    end
+
+    if i >= 2
+%         display('inside')
+        [ind,~] = intersect(ind,ind0,'stable');
+%         display(ind)
+    end
+    ind0=ind;
+    
+end
+val = table2array(T(ind,'RecordingId'));
+recs = table2array(T(ind,'FileName'));

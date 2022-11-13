@@ -1,0 +1,52 @@
+close('all')
+t=[1:100*100]/100;
+f0 = 50;
+f1 = 1;
+f2 = 10;
+PC1 = 100*repmat(sin(2*pi*f0*t),256,1)';
+PC2 = [];
+PC3 = [];
+for i = [1:256]
+    PC2(:,i) = sin(2*pi*f1*t)*i;
+    PC3(:,i) = -sin(2*pi*f1*t)*abs(i-257);
+end
+PC4 = zeros(size(PC1));
+PC4(:,150) = sin(2*pi*f2*t);
+LfpSim =  PC1 + PC2+ PC3 +PC4;
+
+figure()
+hold on
+for i = 1:16
+    plot(t,LfpSim(:,i),'r')
+    plot(t,LfpSim(:,(i-1)*16+1),'b')
+end
+NumPCs=3;
+
+[coeff, loads] = pca(LfpSim,'NumComponents', NumPCs);
+
+
+figure()
+for i = 1:NumPCs
+    subplot(floor(sqrt(NumPCs))+1,floor(sqrt(NumPCs))+1,i)
+    F=  scatteredInterpolant(v,w,coeff(:,i));
+    bF = F(bX,bY);
+    pcolor(bF)
+%     caxis([-0.3 0.3])
+    colorbar
+end
+
+LfpReduced= loads*coeff';
+figure()
+hold on
+for i = 1:16
+    plot(t,LfpReduced(:,i),'g')
+    plot(t,LfpReduced(:,(i-1)*16+1),'k')
+end
+
+
+figure()
+hold on
+for i = 1:16
+    plot(t,LfpSim(:,i)-LfpReduced(:,i),'y')
+    plot(t,LfpSim(:,(i-1)*16+1)-LfpReduced(:,(i-1)*16+1),'c')
+end

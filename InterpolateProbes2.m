@@ -1,15 +1,21 @@
-function LfpInterp = InterpolateProbes(FileName, T,indDB)
+function LfpInterp = InterpolateProbes2(FileName, T,indDB,OutputPath)
 %this function uses scatter interpolant to interpolate bad channels in an
 %array. Lfp(:,1) contains all samples for a channel in position 1. Channels
 %are sorted geometrically (i.e. 1,2,3,... along a column, and then next
 %column). For a linear probe, a clone column is created for the scatter
 %interpolant to work.
+
+% [fMode] = DefaultArgs(varargin,{'compute'});
+    
     nCh = T.NumCh(indDB);
     Lfp = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
+    display('Loading Lfp')
+    display('Lfp loaded')
+    display(size(Lfp),'sizeLFP')
 
     badindex = str2num(T.badChannels{indDB});
-    nRows = T.nRows(indDB);
-    nCols = T.nCols(indDB);
+    nChRow = T.nRows(indDB);
+    nChCol = T.nCols(indDB);
     depth = T.depth(indDB);
     SingleShank = T.SingleShank(indDB);
 
@@ -78,7 +84,7 @@ function LfpInterp = InterpolateProbes(FileName, T,indDB)
     end
 %     display(size(Lfp),'sizeLfp')
     for k =1:length(Lfp(:,1))
-        display(k,'sample number')
+%         display(k,'sample number')
         map = Lfp(k,:);
         map(badindex)=[];%eliminate bad channels
         F=  scatteredInterpolant(v,w,map');
@@ -86,5 +92,5 @@ function LfpInterp = InterpolateProbes(FileName, T,indDB)
         LfpInterp(k,:) = reshape(bF,[],1);
     end
     
-    SaveBinary(strcat(OutputPath,i(1:end-4),'Interp2','.lfp'), Lfp)
+    SaveBinary(strcat(FileName(1:end-4),'.interp','.lfp'), LfpInterp);
 end

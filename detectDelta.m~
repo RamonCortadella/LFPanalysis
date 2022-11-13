@@ -1,0 +1,228 @@
+function detectDelta(FileName,T,indDB,OutputPath, varargin)
+
+[fMode,TimeConstantSmooth] = DefaultArgs(varargin,{'compute', 0.1});
+switch fMode
+    case 'compute'
+        nCh = T.NumCh(indDB);
+        Fs = T.Fs(indDB);
+        nRows = T.nRows(indDB);
+        nCols = T.nCols(indDB);
+        Kernel = floor(TimeConstantSmooth*Fs);
+        
+        Lfp = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
+        
+        
+%         AmpStackT = zeros(size(Lfp));
+%         TimeStackT = zeros(size(Lfp));
+%         AmpStackP = zeros(size(Lfp));
+%         TimeStackP = zeros(size(Lfp));
+        
+        PosStackC = zeros(length(Lfp(:,1))-1,length(Lfp(1,:)));
+        PosStackT = zeros(length(Lfp(:,1))-1,length(Lfp(1,:)));
+        PosStackP = zeros(length(Lfp(:,1))-1,length(Lfp(1,:)));
+        
+        LfpFilt = ButFilter(Lfp,2,[0.1 6]/(Fs)*2,'bandpass');
+        LfpFiltDown = LfpFilt(1:2:end,:);
+        %compute troughs, crossings and peaks for all channels
+        %independently. The occurence of these events is summed over all
+        %channels later and smoothened to find most coherent events across
+        %multiple channels
+        for iCh = 1:nCh
+            display(iCh,'Detecting waves in channel')
+            
+            LfpFiltCh = LfpFilt(:,iCh);
+            
+            LfpFiltSign = zeros(size(LfpFiltCh));
+            LfpFiltSign(find(LfpFiltCh>=0)) = 1;
+            LfpFiltSign(find(LfpFiltCh<0)) = 0;
+
+            crossings = diff(LfpFiltSign); % yields -1 for upward crossings, and 1 for downward crossings
+            PosCrossings = find(crossings == 1); %negative to positive
+            dLfp = diff(LfpFiltCh);
+            dLfpSign = zeros(size(dLfp));
+            dLfpSign(find(dLfp>=0)) = 1;
+            dLfpSign(find(dLfp<0)) = 0;
+            CrosDLfpSign = diff(dLfpSign);
+            
+            PosStackC(:,iCh) =  crossings==1; % ones in samples where there is a negative to positive Lfp crossing
+    %         figure()
+    %         hold on
+            for i = 1:length(PosCrossings)
+                
+                if PosCrossings(i)>=length(LfpFiltCh)-10*Kernel | PosCrossings(i)<=10*Kernel
+                    continue
+                end
+                
+                ii=0;
+                while CrosDLfpSign(PosCrossings(i)-ii) ~= 1
+                    ii = ii+1;
+                end  
+                iii=0;
+                while CrosDLfpSign(PosCrossings(i)+iii) ~= -1
+                    iii = iii+1;
+                end 
+%                 AmpStackT(i,iCh) = LfpFiltCh(PosCrossings(i)-ii);
+%                 TimeStackT(i,iCh) = ii*Fs;
+%                 AmpStackP(i,iCh) = LfpFiltCh(PosCrossings(i)+iii);
+%                 TimeStackP(i,iCh) = iii*Fs;
+                
+                PosStackT(PosCrossings(i)-ii,iCh) = 1;  
+                PosStackP(PosCrossings(i)+iii,iCh) = 1;
+            end
+        end
+        
+        SumC = mean(PosStackC')*nCh;
+        Ccoocurrence = conv(SumC,ones([Kernel,1])); %number of channels/time (coocurrence) where a negative to possitive 0-crossing is detected
+        dCcoocurrence = diff(Ccoocurrence); % calculate the derivative to find local maximums of crossings coocurrence
+        dCcoocurrenceSign = zeros(size(dCcoocurrence)); 
+        dCcoocurrenceSign(find(dCcoocurrence>=0)) = 1; %if slope is possitive assign 1 else leave 0
+        CrosDCcoocurrenceSign = diff(dCcoocurrenceSign); %find transitions in the sign of sope or crossings coocurrence
+        PosCArray = CrosDCcoocurrenceSign==-1; % get a 1 when there is a transition from positive to negative slope in crossings coocurrence
+        PosGlobalCrossings = find(CrosDCcoocurrenceSign==1); % get indices where there is a "global" crossing (i.e. max in crossing coocurrence) 
+        
+        SumT = mean(PosStackT')*nCh;
+        Tcoocurrence = conv(SumT,ones([Kernel,1]));
+        dTcoocurrence = diff(Tcoocurrence);
+        dTcoocurrenceSign = zeros(size(dTcoocurrence));
+        dTcoocurrenceSign(find(dTcoocurrence>=0)) = 1;
+        CrosDLfpSign = diff(dTcoocurrenceSign);
+        PosTArray = CrosDLfpSign==-1; % get a 1 when there is a transition from positive to negative slope in trough coocurrence
+        
+        
+        SumP = mean(PosStackP')*nCh;
+        Pcoocurrence = conv(SumP,ones([Kernel,1]));
+        dPcoocurrence = diff(Pcoocurrence);
+        dPcoocurrenceSign = zeros(size(dPcoocurrence));
+        dPcoocurrenceSign(find(dPcoocurrence>=0)) = 1;
+        CrosDLfpSign = diff(dPcoocurrenceSign);
+        PosPArray = CrosDLfpSign==-1; % get a 1 when there is a transition from positive to negative slope in peak coocurrence
+        
+        
+        %search "global" troughs and "global" peaks closest to "global"
+        %crossings
+        AmpGlobT = [];
+        AmpGlobP = [];
+        PosXGlobT = [];
+        PosXGlobP = [];
+        PosYGlobT = [];
+        PosYGlobP = [];
+        VarSpaceGlobT = [];
+        VarSpaceGlobP = [];
+        for i = 1:length(PosGlobalCrossings)
+            display(PosGlobalCrossings(i),'PosGlobalCrossings')
+            if PosGlobalCrossings(i)>=length(LfpFiltCh)-10*Kernel | PosGlobalCrossings(i)<=10*Kernel
+                continue
+            end
+            
+            ii=0;
+            while PosTArray(PosGlobalCrossings(i)-ii) ~= 1
+                ii = ii+1;
+            end  
+            iii=0;
+            while PosPArray(PosGlobalCrossings(i)+iii) ~=1
+                iii = iii+1;
+            end 
+            AmpGlobT = [AmpGlobT,min(LfpFilt(PosGlobalCrossings(i)-ii,:))];
+            AmpGlobP = [AmpGlobP,max(LfpFilt(PosGlobalCrossings(i)+iii,:))];
+            PosXGlobT = [PosXGlobT,floor((find(LfpFilt(PosGlobalCrossings(i)-ii,:) == min(LfpFilt(PosGlobalCrossings(i)-ii,:)))-1)/nRows)+1];
+            PosYGlobT = [PosYGlobT,rem(find(LfpFilt(PosGlobalCrossings(i)-ii,:) == min(LfpFilt(PosGlobalCrossings(i)-ii,:)))-1,nCols)+1];
+            PosXGlobP = [PosXGlobP,floor((find(LfpFilt(PosGlobalCrossings(i)+iii,:) == max(LfpFilt(PosGlobalCrossings(i)+iii,:)))-1)/nRows)+1];
+            PosYGlobP = [PosYGlobP,rem(find(LfpFilt(PosGlobalCrossings(i)+iii,:) == max(LfpFilt(PosGlobalCrossings(i)+iii,:)))-1,nCols)+1];
+            VarSpaceGlobT = [VarSpaceGlobT, min(LfpFilt(PosGlobalCrossings(i)-ii,:))];
+            VarSpaceGlobP = [VarSpaceGlobP, var(LfpFilt(PosGlobalCrossings(i)+iii,:))];
+            
+        end
+        out = struct('AmpGlobT',AmpGlobT,'AmpGlobP',AmpGlobP,'PosXGlobT',PosXGlobT,'PosYGlobT',PosYGlobT,'PosXGlobP',PosXGlobP, 'PosYGlobP', PosYGlobP,'VarSpaceGlobT',VarSpaceGlobT,'VarSpaceGlobP',VarSpaceGlobP,'PosCArray',PosCArray,'LfpFiltDown',LfpFiltDown);
+        save(strcat(OutputPath,'-FeaturesDeltaWaves.mat'),'out')       
+        
+%         figure()
+%         scatter(abs(timeT),abs(ampT))
+%         set(gca,'yscale','log')
+%         set(gca,'xscale','log')
+% 
+%         figure()
+%         scatter(abs(timeP),abs(ampP))
+%         set(gca,'yscale','log')
+%         set(gca,'xscale','log')
+% 
+%         figure()
+%         scatter(abs(ampT),abs(ampP))
+%         set(gca,'yscale','log')
+%         set(gca,'xscale','log')
+% 
+%         figure()
+%         hist(ampT,100)
+% 
+%         figure()
+%         hist(ampP,100)
+% 
+%         figure()
+%         plot(LfpFilt)
+        
+    case 'display'
+        load(strcat(OutputPath,'-FeaturesDeltaWaves.mat'),'out')       
+        
+        figure()
+        scatter(out.AmpGlobT,out.VarSpaceGlobT)
+        title('x:AmpGlobT,y:VarSpaceGlobT')
+        set(gca,'yscale','log')
+        
+        figure()
+        scatter(out.AmpGlobP,out.VarSpaceGlobP)
+        title('x:AmpGlobP,y:VarSpaceGlobP')
+        set(gca,'yscale','log')
+        
+        figure()
+        histogram2(out.AmpGlobT,out.AmpGlobP,'DisplayStyle','tile')
+        cb = colorbar();
+        cb.Ruler.Scale = 'log';
+        title('x:AmpGlobT ,y:AmpGlobP')
+        
+        figure()
+        display(size(sqrt(out.VarSpaceGlobT)./out.AmpGlobT))
+        histogram(sqrt(out.VarSpaceGlobT)./out.AmpGlobT);
+        title('x:RelativeVarSpaceGlobT,y:AmpGlobP')
+        
+        figure()
+        scatter3(out.PosXGlobT, out.PosYGlobT,out.VarSpaceGlobT)
+        title('x:PosXGlobT,y:PosXGlobT,z:VarSpaceGlobT')
+        
+        scatter3(out.PosXGlobP, out.PosYGlobP,out.VarSpaceGlobP)
+        title('x:PosXGlobP,y:PosXGlobP,z:VarSpaceGlobP')
+        
+        figure()
+        histogram2(out.PosXGlobT,out.PosYGlobT,'DisplayStyle','tile')
+        title('x:PosXGlobT,y:PosYGlobT')
+        
+        figure()
+        histogram2(out.PosXGlobP,out.PosYGlobP,'DisplayStyle','tile')
+        title('x:PosXGlobP ,y:PosYGlobP')
+        
+               
+        figure()
+        plot(out.LfpFiltDown)
+        
+    case 'groupstats'
+        load(strcat(OutputPath,'-FeaturesDeltaWaves.mat'),'out')       
+        fn = fieldnames(out);
+        Data = zeros(length(out.(fn{1})),length(fn));
+        for i = 1:length(fn)
+            if strcmp(fn{i},'PosCArray')==1 | strcmp(fn{i}, 'LfpFiltDown')==1
+                continue
+            end
+            display(fn{i})
+            Data(:,i) = out.(fn{i});
+        end
+        for ik = 1:30
+            [idx,~,sumd] = kmeans(Data,ik);
+            SumDist(ik) = sum(sumd);
+        end
+        figure()
+        plot(SumDist)
+        
+        
+        
+%         ind(ik) = find(idx==i)
+        
+        
+end

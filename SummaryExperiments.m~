@@ -1,13 +1,13 @@
-MetaDataBase = '/storage2/ramon/data/DB/RecordingsDB-Temp3.xlsx';
+MetaDataBase = '/storage2/ramon/data/DB/RecordingsDB-Temp4.xlsx';
 close('all')
 %% Functions Settings
 %--- bad channels identification
-BadChannels = true;
+BadChannels = false;
 factor = 2.5;
 
 %--- smoothening
-smooth = 1;
-iterSmoothening = 3;
+smooth = 0;
+iterSmoothening = 1;
 
 %--- bad channels interpolation
 Interpolation = true;
@@ -19,10 +19,10 @@ numSources=100;
 sFA = false;
 
 %--- save?
-SaveResult = true;
+SaveResult = false;
 
 %--- process mocap to find motor states
-MotorClass = true;
+MotorClass = false;
 OutPathMotor = '../../../data/DB/States/';
 InputPathMotor = '../../../data/DB/Mocap/';
 vThreshold = 0.05; %velocity considered active
@@ -32,11 +32,11 @@ FallSleepTime =20; %Fall sleep time must be smaller that MinSleepTime, if a quit
 MinSleepTime = 40;
 
 %--- compute spectrograms
-SpecSave = true;
+SpecSave = false;
 OutPathSpectrogram = '../../../data/DB/States/';
 
 %--- Compute Brain State Classification
-BrainClass = true;
+BrainClass = false;
 OutPathBrainStates = '../../../data/DB/States/';
 MinThetaDeltaRatio = 0.8;
 MinTimeRatio = 10; %minimum duration of theta ON state
@@ -54,7 +54,7 @@ Queries.CoupledAC=1;
 Queries.mocap=1;
 Queries.SingleShank=0;
 Queries.LostMocapSamples=0;
-% Queries.depth=0;
+Queries.depth=1;
 fn = fieldnames(Queries);
 
 %% load MetaDataBase  and apply queries/return selected files
@@ -75,14 +75,16 @@ val = st;
 
 %% apply functions on loaded recordings
 for iFile = 1:length(val)
-   
+    if iFile >1
+        continue
+    end
     if smooth==1 | BadChannels == true | SpecSave == true| BrainClass == true | ICA==true
         nCh = T.NumCh(ind(iFile));
         InputPath = '../../../data/DB/MappedData/';
         FileName = [InputPath, val{iFile}];
         Lfp = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
 
-        smooth = T.Smooth(ind(iFile));
+        smooth2 = T.Smooth(ind(iFile));
         nRows = T.nRows(ind(iFile));
         nCols = T.nCols(ind(iFile));
         Chs = [1:nRows*nCols];
@@ -92,7 +94,7 @@ for iFile = 1:length(val)
 %---------------    
     if BadChannels == true
         OutputPath = '../../../data/DB/';
-        if smooth==1
+        if smooth2==1
             factor = factor+3;
         end
         [badChs,RMSarray] = FindBadCh(Lfp, Fs, nRows, nCols, factor);
@@ -102,7 +104,7 @@ for iFile = 1:length(val)
         
     end
 %---------------    
-    if smooth == 1
+    if smooth == 1 & smooth2 == 1
         badindex = str2num(T.badChannels{ind(iFile)});
         Lfp = GmSmoothening(Lfp, [0.5, 10], Fs, nRows, nCols, Chs, iterSmoothening,badindex);
         %repeat bad ch search

@@ -1,4 +1,4 @@
-function LfpCorr = GmSmoothening(FileName,T,indDB, band, Fs, nRows, nCols, Chs, iterations, BadChannels)
+function GmSmoothening2(FileName,T,indDB, OutputPath, varargin)
 %this function takes an array of signals (1-dimensional - n x m) x time and reduces the
 %gain noise by calculating the ratio between the RMS of nearest/next-nearest
 %neighbours and the central channel. Possible phase inversion (i.e. wrong 
@@ -16,9 +16,18 @@ function LfpCorr = GmSmoothening(FileName,T,indDB, band, Fs, nRows, nCols, Chs, 
 
 % take 20 random segments of 5 sec (exclude last 10 s) for
 % nearest/next-nearest channels and central channel
+[band, iterations] = DefaultArgs(varargin,{[0.5, 10], 1});
 
-nCh = T.NumCh(IndDB);
+
+display(['loading ' FileName])
+        
+BadChannels = str2num(T.badChannels{indDB});
+nCh = T.NumCh(indDB);
 Lfp = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
+nRows = T.nRows(indDB);
+nCols = T.nCols(indDB);
+Chs = [1:nRows*nCols];
+Fs = T.Fs(indDB);
 
 SegmentSize = floor(length(Lfp(:,1))/21);%in units of samples
 SegmentsInit = [1:20]'*SegmentSize;%in units of samples
@@ -33,9 +42,10 @@ M1 = repmat([1:nRows]',1,nCols);
 M2 = repmat([1:nCols],nRows,1);
 
 for it = 1:iterations
-    LfpFilt = ButFilter(Lfp,4,band/(Fs/2),'bandpass');
+    LfpFilt = ButFilter(Lfp,2,band/(Fs/2),'bandpass');
+    display(LfpFilt(1:10,1:10),'LfpFilt')
     for i=Chs %smoothen gain for ith channel
-        display(i,'Channel')
+%         display(i,'Channel')
         frame = [i-nRows-1, i-nRows, i-nRows+1, i-1, i+1, i+nRows-1, i+nRows, i+nRows+1];
         indices=0;
         counter=0;
@@ -50,7 +60,8 @@ for it = 1:iterations
                 end
             end
         end
-
+%         display(indices,'indices***')
+%         display(counter,'counter')
         if counter==0
             CorrRatio = 0;
             CorrSign = 1;
@@ -65,8 +76,13 @@ for it = 1:iterations
             CorrSign = median(CorrSign);
         end
         LfpCorr(:,i) = Lfp(:,i)*CorrSign*CorrRatio;
+%         display(LfpFilt(Samps,indices),'LfpFilt(Samps,indices)***')
+%         display(indices,'indices')
+        
     end
     Lfp = LfpCorr;
+
+    SaveBinary(strcat(FileName(1:end-4),'.smooth','.lfp'), Lfp);
 end
 
     

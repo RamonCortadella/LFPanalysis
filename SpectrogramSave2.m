@@ -1,0 +1,116 @@
+function out = SpectrogramSave2(FileName,OutPathStates, T, indDB, varargin)
+%function out = FunctionName(FileBase ,fMode, Arg1, Arg2)
+%here is the help message :
+[fMode] = DefaultArgs(varargin,{'compute'});
+
+ 
+%body of the function
+switch fMode
+    case 'compute'
+        display(['loading ' FileName])
+        %if you give output from the function make it structure :
+        nCh = T.NumCh(indDB);
+        Lfp = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
+        %load params
+        
+        nRows = T.nRows(indDB);
+        nCols = T.nCols(indDB);
+        Chs = [1:nRows*nCols];
+        Fs = T.Fs(indDB);
+        
+        if T.CoupledDC(indDB)== 1 & T.CoupledAC(indDB)== 0
+            display('*********** ERROR, function intended for AC coupled data********')
+            o(1000)
+        end
+        BadChannels = str2num(T.badChannels{indDB});
+        ChIndHVS = T.ChHVS(indDB);
+        ChIndTheta = T.ChTheta(indDB);
+        sLfp = size(Lfp);
+        if sLfp(2)==1024
+            ChIndHVS=ChHVS*2;
+            ChIndTheta = ChTheta*2;
+            nRows=32;
+        end
+        Lfp(isnan(Lfp))=0;
+
+        % Parameters spectrogram
+        nFFTtheta = 3072;
+        nFFTHVS = 1024;
+        if T.depth(indDB)==1 & T.SingleShank(indDB)==0
+            nFFTtheta = 3072*2;
+            nFFTHVS = 1024*2;
+        end
+    %     display(Lfp,'lfp')
+
+        %% compute spectrogram whitened and mean-of-sveral-channels for AC theta and HVS channels
+
+        [wx,~] = WhitenSignal(Lfp,[],[],[],1);
+    %     for i=1:length(wx(1,:))
+    %         wx(isnan(wx(:,i)),i)=0;
+    %     end
+        ChIndThetaList= [ChIndTheta-1-nRows:ChIndTheta+1-nRows, ChIndTheta-1:ChIndTheta+1, ChIndTheta-1+nRows:ChIndTheta+1+nRows];
+        ChIndHVSList = [ChIndHVS-1-nRows:ChIndHVS+1-nRows, ChIndHVS-1:ChIndHVS+1, ChIndHVS-1+nRows:ChIndHVS+1+nRows];
+        pos= setdiff(ChIndThetaList,BadChannels);
+        posHVS = setdiff(ChIndHVSList,BadChannels);
+        
+
+        [ws,wf,wt] = mtcsglong(mean(wx(:,posHVS),2),nFFTHVS,Fs);%,1024);
+        [s,f,t] = mtcsglong(mean(Lfp(:,posHVS),2),nFFTHVS,Fs);%,1024);
+
+        
+        [wst,wft,wtt] = mtcsglong(mean(wx(:,pos),2),nFFTtheta,Fs);%,1024);
+        [st,ft,tt] = mtcsglong(mean(Lfp(:,pos),2),nFFTtheta,Fs);%,1024);
+
+        
+        %% save spectrograms 
+        fn = split(FileName,'-');
+        rn = split(fn{3},'.');
+
+        WhitenedSpecHVS = struct('ws',ws,'wf',wf,'wt',wt);
+        RawSpecHVS = struct('s',s,'f',f,'t',t);
+        SpecHVS = struct('WhitenedSpecHVS',WhitenedSpecHVS,'RawSpecHVS',RawSpecHVS);
+        save(strcat(OutPathStates,T.RecordingId{indDB},'-SpecHVS.mat'),'SpecHVS')
+
+
+        WhitenedSpecStates = struct('ws',wst,'wf',wft,'wt',wtt);
+        RawSpecStates = struct('s',st,'f',ft,'t',tt);
+        SpecStates = struct('WhitenedSpecStates',WhitenedSpecStates,'RawSpecStates',RawSpecStates);
+        save(strcat(OutPathStates,T.RecordingId{indDB},'-SpecStates.mat'),'SpecStates')
+        Fmax = 50;
+        NFmaxTheta = floor(Fmax*nFFTtheta/Fs);
+        
+
+        figure()
+        h= pcolor(tt,ft(1:NFmaxTheta),log10(abs(st(:,1:NFmaxTheta)')));
+        ylim([Fs*6/nFFTtheta Fmax])
+        caxis([min(min(log10(abs(st(:,1:NFmaxTheta)'))))+1.9 max(max(log10(abs(st(:,1:NFmaxTheta)'))))-0.3])
+        set(gca,'YScale','log')
+        set(h, 'EdgeColor', 'none')
+        
+    case 'display'
+        % Parameters spectrogram
+        nFFTtheta = 3072;
+        Fs = T.Fs(indDB);
+        Fmax = 50;
+        NFmaxTheta = floor(Fmax*nFFTtheta/Fs);
+        fn = split(FileName,'-');
+        rn = split(fn{3},'.');
+
+        load(strcat(OutPathStates,T.RecordingId{indDB},'-SpecStates.mat'));
+
+        st = SpecStates.RawSpecStates.s;
+        ft = SpecStates.RawSpecStates.f;
+        tt = SpecStates.RawSpecStates.t;
+        
+        figure()
+        h= pcolor(tt,ft(1:NFmaxTheta),log10(abs(st(:,1:NFmaxTheta)')));
+
+        ylim([Fs*6/nFFTtheta Fmax])
+        caxis([min(min(log10(abs(st(:,1:NFmaxTheta)'))))+1.9 max(max(log10(abs(st(:,1:NFmaxTheta)'))))-0.3])
+        set(gca,'YScale','log')
+    %     set(gca,'YDir','normal')
+    %     colormap('jet')
+        set(h, 'EdgeColor', 'none')
+    case 'groupstats'
+        % load and then compute stats and output 
+end

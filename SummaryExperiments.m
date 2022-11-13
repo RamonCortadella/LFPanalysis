@@ -2,15 +2,15 @@ MetaDataBase = '/storage2/ramon/data/DB/RecordingsDB-Temp4.xlsx';
 close('all')
 %% Functions Settings
 %--- bad channels identification
-BadChannels = true;
+BadChannels = false;
 factor = 2.5;
 
 %--- smoothening
 smooth = 0;
-iterSmoothening = 3;
+iterSmoothening = 1;
 
 %--- bad channels interpolation
-Interpolation = false;
+Interpolation = true;
 
 %--- ICA decomposition
 ICA=false;
@@ -19,7 +19,7 @@ numSources=100;
 sFA = false;
 
 %--- save?
-SaveResult = false;
+SaveResult = true;
 
 %--- process mocap to find motor states
 MotorClass = false;
@@ -54,7 +54,7 @@ Queries.CoupledAC=1;
 Queries.mocap=1;
 Queries.SingleShank=0;
 Queries.LostMocapSamples=0;
-% Queries.depth=0;
+Queries.depth=1;
 fn = fieldnames(Queries);
 
 %% load MetaDataBase  and apply queries/return selected files
@@ -75,7 +75,7 @@ val = st;
 
 %% apply functions on loaded recordings
 for iFile = 1:length(val)
-    if iFile<=12
+    if iFile >1
         continue
     end
     if smooth==1 | BadChannels == true | SpecSave == true| BrainClass == true | ICA==true
@@ -84,7 +84,7 @@ for iFile = 1:length(val)
         FileName = [InputPath, val{iFile}];
         Lfp = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
 
-        smooth = T.Smooth(ind(iFile));
+        smooth2 = T.Smooth(ind(iFile));
         nRows = T.nRows(ind(iFile));
         nCols = T.nCols(ind(iFile));
         Chs = [1:nRows*nCols];
@@ -93,18 +93,18 @@ for iFile = 1:length(val)
 
 %---------------    
     if BadChannels == true
-        OutputPath = '../../../data/DB/';
-        if smooth==1
+        if smooth2==1
             factor = factor+3;
         end
         [badChs,RMSarray] = FindBadCh(Lfp, Fs, nRows, nCols, factor);
        
+        OutputPath = '../../../data/DB/';
         T.badChannels(ind(iFile))= {mat2str(badChs)};
         writetable(T,strcat(OutputPath,'RecordingsDB-Temp4','.xlsx'))
         
     end
 %---------------    
-    if smooth == 1
+    if smooth == 1 & smooth2 == 1
         badindex = str2num(T.badChannels{ind(iFile)});
         Lfp = GmSmoothening(Lfp, [0.5, 10], Fs, nRows, nCols, Chs, iterSmoothening,badindex);
         %repeat bad ch search
@@ -218,8 +218,8 @@ for iFile = 1:length(val)
 %--------------- 
     if SaveResult == true
         
-        OutputPath = '../../../data/DB/ProcessedFiles/';
-        SaveBinary(strcat(OutputPath,val{iFile}(1:end-4),'Interp','.lfp'), Lfp)
+        OutputPath = '../../../data/DB/Files/';
+        SaveBinary(strcat(OutputPath,val{iFile}(1:end-4),'Interp2','.lfp'), Lfp)
     end    
 
 

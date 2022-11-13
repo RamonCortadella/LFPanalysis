@@ -155,7 +155,7 @@ AwNTh = logical(zeros(size(t)));
 %Create a binary map of the state with suprathreshold theta/delta ratio 
 
 map = ratio > MinThetaDeltaRatio;
-% display(map,'map BS_ER_R')
+display(map,'map BS_ER_R')
 % merge closer than 20
 % counter2 = 1;
 % lenMap = length(map);
@@ -210,16 +210,10 @@ if length(run')>length(map)
 else
     run= [run, zeros([length(map)-length(run'), 1])];
 end
-% display(map,'map BS_ER_R')
-% display(run,'run BS_ER_R')
-% display(sleep,'sleep BS_ER_R')
-% display(sws,'sws BS_ER_R')
-
-
 %Create binary maps of the brain states
 if IfMotorDataAvailable==1
-%     display(length(run'))
-%     display(length(map))
+    display(length(run'))
+    display(length(map))
     %THETA state periods: high theta/delta ratio periods during RUN
     
     theta = run' & map;

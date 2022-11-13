@@ -18,7 +18,7 @@ switch fMode
         %load params
         Fs = T.Fs(IndDB);
         FsMocap = T.FsMocap(IndDB);
-
+        
         
         Kernel = FsMocap;
         var = zeros([length(table2array(MocapT(5:end,2))), 4]);
@@ -29,16 +29,18 @@ switch fMode
         for i = 1:4
             if i>=2
                 var(:,i)= str2double(table2array(MocapT(5:end,i+1)))+1; %var(1)=time, var(2) = x, var(3)=y, var(4)=z
+                
                 cvar(:,i-1)=conv(var(:,i),ones([Kernel,1]));
                 dcvar(:,i-1) = (cvar(2:end,i-1)-cvar(1:end-1,i-1))./Kernel;
+                
             else
                 var(:,i)= str2double(table2array(MocapT(5:end,i+1)));
             end
         end
 
         ModVel = (dcvar(:,1).^2+dcvar(:,2).^2+dcvar(:,3).^2).^(1/2);
-
-        [Periods, StateMap, StateTitle] = MotorStates([var(2:end,1), ModVel(Kernel:end)*100],vThreshold,duration, Fs, FallSleepTime, MinSleepTime); %min v in cm/s
+        ModVel(isnan(ModVel))=0;
+        [Periods, StateMap, StateTitle] = MotorStates([var(2:end,1), ModVel(Kernel:end)*100],vThreshold,duration, FsMocap, FallSleepTime, MinSleepTime); %min v in cm/s
 
         MotorStateMap(:,1) = [0:1:length(StateMap)-1]./FsMocap;
         MotorStateMap(:,2) = StateMap;
@@ -60,9 +62,9 @@ switch fMode
         save(strcat(OutputPath,fn{1},'-',fn{2},'-Rec',rn{1}(4:end),'-MocapDuration.mat'),'MocapDuration');
 %         save(strcat(OutputPath,fn{1},'-',fn{2},'-Rec',rn{1}(4:end),'-MocapDuration.mat'),'MocapDuration');
         
-        T.LostMocapSamples(IndDB) = Broken;
-        out.T =
-        writetable(T,strcat(OutputPathTable,FileNameDB,'.xlsx'))
+%         T.LostMocapSamples(IndDB) = Broken;
+%         out.T = T;
+%         writetable(T,strcat(OutputPathTable,FileNameDB,'.xlsx'))
         
     case 'display'
         fn = split(FileName,'-');
