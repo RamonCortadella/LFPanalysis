@@ -69,13 +69,13 @@ switch fMode
         WhitenedSpecHVS = struct('ws',ws,'wf',wf,'wt',wt);
         RawSpecHVS = struct('s',s,'f',f,'t',t);
         SpecHVS = struct('WhitenedSpecHVS',WhitenedSpecHVS,'RawSpecHVS',RawSpecHVS);
-        save(strcat(OutPathStates,T.RecordingId{indDB},'-SpecHVS.mat'),'SpecHVS')
+        save(strcat(OutPathStates,T.RecordingId{indDB},'.SpecHVS.mat'),'SpecHVS')
 
 
         WhitenedSpecStates = struct('ws',wst,'wf',wft,'wt',wtt);
         RawSpecStates = struct('s',st,'f',ft,'t',tt);
         SpecStates = struct('WhitenedSpecStates',WhitenedSpecStates,'RawSpecStates',RawSpecStates);
-        save(strcat(OutPathStates,T.RecordingId{indDB},'-SpecStates.mat'),'SpecStates')
+        save(strcat(OutPathStates,T.RecordingId{indDB},'.SpecStates.mat'),'SpecStates')
         Fmax = 50;
         NFmaxTheta = floor(Fmax*nFFTtheta/Fs);
         
@@ -96,7 +96,7 @@ switch fMode
         fn = split(FileName,'-');
         rn = split(fn{3},'.');
 
-        load(strcat(OutPathStates,T.RecordingId{indDB},'-SpecStates.mat'));
+        load(strcat(OutPathStates,T.RecordingId{indDB},'.SpecStates.mat'));
 
         st = SpecStates.RawSpecStates.s;
         ft = SpecStates.RawSpecStates.f;

@@ -11,7 +11,8 @@ switch fMode
         
         Lfp = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
         
-        
+        figure()
+        plot([1:length(Lfp(:,1))]/Fs,Lfp(:,28))
 %         AmpStackT = zeros(size(Lfp));
 %         TimeStackT = zeros(size(Lfp));
 %         AmpStackP = zeros(size(Lfp));
@@ -106,6 +107,10 @@ switch fMode
         PosXGlobP = [];
         PosYGlobT = [];
         PosYGlobP = [];
+        
+        PatchGlobT = [];
+        PatchGlobP = [];
+        
         VarSpaceGlobT = [];
         VarSpaceGlobP = [];
         for i = 1:length(PosGlobalCrossings)
@@ -123,15 +128,24 @@ switch fMode
                 iii = iii+1;
             end 
             AmpGlobT = [AmpGlobT,min(LfpFilt(PosGlobalCrossings(i)-ii,:))];
+            PatchGlobT = [PatchGlobT, find(LfpFilt(PosGlobalCrossings(i)-ii,:)<= -30)];
             AmpGlobP = [AmpGlobP,max(LfpFilt(PosGlobalCrossings(i)+iii,:))];
+            PatchGlobP = [PatchGlobP, find(LfpFilt(PosGlobalCrossings(i)+iii,:)>= -30)];
+            
             PosXGlobT = [PosXGlobT,floor((find(LfpFilt(PosGlobalCrossings(i)-ii,:) == min(LfpFilt(PosGlobalCrossings(i)-ii,:)))-1)/nRows)+1];
             PosYGlobT = [PosYGlobT,rem(find(LfpFilt(PosGlobalCrossings(i)-ii,:) == min(LfpFilt(PosGlobalCrossings(i)-ii,:)))-1,nCols)+1];
             PosXGlobP = [PosXGlobP,floor((find(LfpFilt(PosGlobalCrossings(i)+iii,:) == max(LfpFilt(PosGlobalCrossings(i)+iii,:)))-1)/nRows)+1];
             PosYGlobP = [PosYGlobP,rem(find(LfpFilt(PosGlobalCrossings(i)+iii,:) == max(LfpFilt(PosGlobalCrossings(i)+iii,:)))-1,nCols)+1];
-            VarSpaceGlobT = [VarSpaceGlobT, min(LfpFilt(PosGlobalCrossings(i)-ii,:))];
-            VarSpaceGlobP = [VarSpaceGlobP, var(LfpFilt(PosGlobalCrossings(i)+iii,:))];
+            VarSpaceGlobT = [VarSpaceGlobT, min(LfpFilt(PosGlobalCrossings(i)-ii,:))-max(LfpFilt(PosGlobalCrossings(i)-ii,:))];
+            VarSpaceGlobP = [VarSpaceGlobP, max(LfpFilt(PosGlobalCrossings(i)+iii,:))-min(LfpFilt(PosGlobalCrossings(i)+iii,:))];
             
+            PosIndexPeak = 
+            PosIndexTrough = 
         end
+        
+        Clu
+        IndLargeGlobT = find(AmpGlobT>=30);
+        
         out = struct('AmpGlobT',AmpGlobT,'AmpGlobP',AmpGlobP,'PosXGlobT',PosXGlobT,'PosYGlobT',PosYGlobT,'PosXGlobP',PosXGlobP, 'PosYGlobP', PosYGlobP,'VarSpaceGlobT',VarSpaceGlobT,'VarSpaceGlobP',VarSpaceGlobP,'PosCArray',PosCArray,'LfpFiltDown',LfpFiltDown);
         save(strcat(OutputPath,'-FeaturesDeltaWaves.mat'),'out')       
         
@@ -179,16 +193,24 @@ switch fMode
         title('x:AmpGlobT ,y:AmpGlobP')
         
         figure()
-        display(size(sqrt(out.VarSpaceGlobT)./out.AmpGlobT))
-        histogram(sqrt(out.VarSpaceGlobT)./out.AmpGlobT);
+        histogram(out.VarSpaceGlobT./out.AmpGlobT);
         title('x:RelativeVarSpaceGlobT,y:AmpGlobP')
         
         figure()
         scatter3(out.PosXGlobT, out.PosYGlobT,out.VarSpaceGlobT)
         title('x:PosXGlobT,y:PosXGlobT,z:VarSpaceGlobT')
         
+        figure()
         scatter3(out.PosXGlobP, out.PosYGlobP,out.VarSpaceGlobP)
         title('x:PosXGlobP,y:PosXGlobP,z:VarSpaceGlobP')
+        
+        figure()
+        scatter3(out.PosXGlobT, out.PosYGlobT,out.AmpGlobT)
+        title('x:PosXGlobT,y:PosXGlobT,z:VarSpaceGlobT')
+        
+        figure()
+        scatter3(out.PosXGlobP, out.PosYGlobP,out.AmpGlobPy)
+        title('x:PosXGlobP,y:PosXGlobP,z:VarSpaceGlobP')   
         
         figure()
         histogram2(out.PosXGlobT,out.PosYGlobT,'DisplayStyle','tile')

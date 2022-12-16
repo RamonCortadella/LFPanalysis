@@ -12,8 +12,8 @@ sleep_ac(indexes) = 0;
 myrLfp = sleep_ac.*sin(linspace(0,tend,tend*Fs)*2*pi*10);
 % 
 FNi = Fs/2;
-fPow = bsxfun(@plus,[5:15],[-1 1]')'/FNi; 
-fPh = bsxfun(@plus,[5:15]/100, [-0.01 0.01]')'/FNi;
+fPow = bsxfun(@plus,[5 15],[-1 1]')'/FNi; 
+fPh = bsxfun(@plus,[0.05 0.15], [-0.01 0.01]')'/FNi;
 
 % fPow = bsxfun(@plus,[10 12],[-0.1 0.1]')'/FNi;
 % fPh = bsxfun(@plus,[0.1 0.15], [-0.01 0.01]')'/FNi;

@@ -1,4 +1,4 @@
-function Video2(FileName, T, indDB, varargin)
+function Video2(FileName, outpath, T, indDB, varargin)
 % This function generates a video from ECoG data 
 %
 % Lfp : data AC channels in [length signal, number of channels], index
@@ -29,14 +29,21 @@ function Video2(FileName, T, indDB, varargin)
 % --------------
 
 % Settings -----
-[SkipSampsFact, SpeedFact, band, OrderFilt, CnstScale, GaussianFact, Tinit] = DefaultArgs(varargin,{1, 1, [0.5,5], 2, true, false, 50});
+[SkipSampsFact, SpeedFact, band, OrderFilt, CnstScale, GaussianFact, Tinit, Tstop] = DefaultArgs(varargin,{2, 0.1, [9,20], 2, true, false, 60,62});
+
+display(Tinit)
 
 BadChannels = str2num(T.badChannels{indDB});
+
 nCh = T.NumCh(indDB);
+
+display('Loading Lfp')
 Lfp = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
 nChRow = T.nRows(indDB);
 nChCol = T.nCols(indDB);
 Fs = T.Fs(indDB);
+
+GoodChs = setdiff([1:nCh],BadChannels);
 
 map = nan(nCh,1);
 
@@ -47,34 +54,47 @@ LfpFilt = ButFilter(Lfp,OrderFilt,band/(Fs)*2,'bandpass');
 display('data filtered for video generation')
 
 %% main movie display plots
-close('all')
 
-start = ; %start in samples 
-stop = size(Lfp,1);   
+if length(Lfp(:,1))<=floor(Fs*Tinit)
+    display('warning, started from the beginning')
+    start=1;
+else
+    start = floor(Fs*Tinit); %start in samples 
+end
+
+if length(Lfp(:,1))<=floor(Fs*Tstop)
+    display('warning, started from the beginning')
+    stop=size(Lfp,1);;
+else
+    stop = floor(Fs*Tstop); %start in samples 
+end
 
 
 tax = [1:stop]*1000/Fs;
 figure(110);clf
-ax1 = subplot(4,4,[1:2 5 6]);
-imagesc(tax,[],LfpFilt(1:end,:)'); caxis([-1000 1000]);
-caxis([-0.6*abs(min(min(LfpFilt(1:end,:)))) 0.6*abs(max(max(LfpFilt(1:end,:))))])
-
-tax = [1:size(Lfp,1)]*1000/Fs;
-h = Lines(tax(1),[],'k');
-
-ax2 = subplot(4,4,[9 10]);
+ax1 = subplot(nBands,3,[(iBands-1)*3+1:(iBands-1)*3+2]);
+% imagesc(tax,[],LfpFilt(1:end,:)'); caxis([-1000 1000]);
+% caxis([-0.07*abs(min(min(LfpFilt(1:end,GoodChs)))) 0.07*abs(max(max(LfpFilt(1:end,GoodChs))))])
+% 
+% 
+% 
+% tax = [1:size(Lfp,1)]*1000/Fs;
+% h = Lines(tax(1),[],'k');
+% 
+% ax2 = subplot(4,4,[9 10]);
 
 hold on
 plot(tax,LfpFilt(:,linspace(1,241,16)+linspace(0,15,16)));
 h1 = Lines(tax(1),[],'k');
 linkaxes([ax1, ax2],'x')
 xlim([start stop]*1000/Fs)
-ylim([-1.5*abs(min(min(LfpFilt(:,linspace(1,241,16)+linspace(0,15,16))))) 1.5*abs(max(max(LfpFilt(:,linspace(1,241,16)+linspace(0,15,16)))))])
+% ylim([-1.5*abs(min(min(LfpFilt(:,setdiff(linspace(1,241,16)+linspace(0,15,16),GoodChs))))) 1.5*abs(max(max(LfpFilt(:,setdiff(linspace(1,241,16)+linspace(0,15,16),GoodChs)))))])
 
+Min = abs(min(min(LfpFilt(1:end,GoodChs))));
 hold off
 %%
 counter= 0;
-for k=start:SpeedFact:stop
+for k=start:SkipSampsFact:stop
     counter = counter+1;
 
 
@@ -88,15 +108,17 @@ for k=start:SpeedFact:stop
 
     %%
     
-    [bX, bY]= meshgrid([1:nChCol]',[1:nChRow]');
-    v = bX;
-    w = bY;
-    v = reshape(v,[],1);
-    w = reshape(w,[],1);
-    v(BadChannels)=[];
-    w(BadChannels)=[];
+
         
     if GaussianFact
+        [bX, bY]= meshgrid([1:nChCol]',[1:nChRow]');
+        v = bX;
+        w = bY;
+        v = reshape(v,[],1);
+        w = reshape(w,[],1);
+        v(BadChannels)=[];
+        w(BadChannels)=[];
+
         map = LfpFilt(k,:); 
         map(BadChannels) = [];
         F=  scatteredInterpolant(v,w,map');
@@ -114,7 +136,9 @@ for k=start:SpeedFact:stop
 
 
     if CnstScale == true
-        caxis([-0.6*abs(min(min(LfpFilt(1:end,:)))) 0.6*abs(min(min(LfpFilt(1:end,:))))])
+        caxis([-0.07*Min 0.07*Min])
+        
+%         caxis([-0.3*abs(min(min(LfpFilt(1:end,setdiff(1:end,BadChannels))))) 0.3*abs(min(min(LfpFilt(1:end,setdiff(1:end,BadChannels)))))])
     else
         caxis(prctile(bF(:),[1 99])); 
     end
@@ -132,14 +156,14 @@ end
 
 %%
 writerObj = VideoWriter(outpath);
-writerObj.FrameRate = Fs;
+writerObj.FrameRate = SpeedFact*Fs/SkipSampsFact;
 % open the video writer
 open(writerObj);
 % write the frames to the video
 for i=1:SkipSampsFact:length(M)
     % convert the image to a frame
     frame = M(i) ;    
-    display(frame)
+%     display(frame)
     writeVideo(writerObj, frame);
 end
 % close the writer object

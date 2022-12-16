@@ -1,4 +1,4 @@
-function out = FindBadCh2(FileName , InputPath, T, IndDB, OutputPathTable,FileNameDB, varargin)
+function out = FindBadCh2(FileName , PathStates, T, IndDB, OutputPathTable,FileNameDB, varargin)
 %this function takes finds the channels with too high and too low power and
 %returns the array of indices corresponding to these "bad channels"
 
@@ -177,16 +177,24 @@ switch fMode
             end
         end
     case 'display'
-        load(strcat(InputPath,'/States/',T.RecordingId{IndDB},'-BadChannels.mat'));
-        figure()
-        hold on
-        nbins=round((max(log10(out.RMSarray))-min(log10(out.RMSarray)))/0.02);
-        display(nbins)
-        histogram(log10(out.RMSarray),nbins)
-
-        histogram(log10(out.RMSarray(out.BadChannels)),nbins)
-%         xline(median(log10(out.RMSarray)),'r')
-        xlim([2.2 3.8])
+%         if T.CoupledAC(indDB) == 1 & T.CoupledDC(indDB) ==0
+%             Coupling ='.AC';
+%         elseif T.CoupledAC(indDB) == 0 & T.CoupledDC(indDB) ==1
+%             Coupling ='.DC';
+%         else
+%             Coupling ='';
+%         end
+%         
+%         load(strcat(PathStates,T.RecordingId{IndDB},Coupling,'.BadChannels.mat'));
+%         figure()
+%         hold on
+%         nbins=round((max(log10(out.RMSarray))-min(log10(out.RMSarray)))/0.02);
+%         display(nbins)
+%         histogram(log10(out.RMSarray),nbins)
+% 
+%         histogram(log10(out.RMSarray(out.BadChannels)),nbins)
+% %         xline(median(log10(out.RMSarray)),'r')
+%         xlim([2.2 3.8])
         
     case 'groupstats'
         % load and then compute stats and output 

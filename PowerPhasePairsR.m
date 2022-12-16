@@ -62,7 +62,8 @@ else
 %                 xPh = resample(xPh,1,ResampleNum);
 %             end
             %---------------------------------------------
-
+%             display(FrBinsPh(kPh,:)*ResampleNum)
+%             display(FrBinsPh(kPh,:))
             ph = angle(hilbert(ButFilter(xPh, 2, FrBinsPh(kPh,:)*ResampleNum, 'bandpass')));
             if UniPhase
                 for kPhCh=1:nPhChan

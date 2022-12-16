@@ -18,13 +18,10 @@ function ICA2(FileName,T,indDB,OutputPathStates,extension, varargin)
 %the index of the animal for which the Ph-Amp coupling is evaluated, if
 %only the significant klusters are taken into account
 
-[fMode, NumICs,BrainState,val,FreqBands,DevType,FreqBandsHigh,CouplingLow,CouplingHigh,MinDurationStates,TimeScaleGlue,ThRoughness,interactiveDisplay,PhAmpKlustersAnimal] = DefaultArgs(varargin,{'compute',30,[],[],{'isa','delta','theta','spindle','beta','lowgamma','highgamma'},'',{'delta'},'.DC','.AC',40,0.2,1,'off',[]}); %'isa','delta','theta','spindle','beta','lowgamma','highgamma'
+[fMode, NumICs,BrainState,val,MinDurationStates,TimeScaleGlue,FreqBands,ThRoughness,interactiveDisplay,PhAmpKlustersAnimal] = DefaultArgs(varargin,{'compute',30,[],[],40,0.2,{'isa','delta','theta','spindle','beta','lowgamma','highgamma'},1,'off',3}); %'isa','delta','theta','spindle','beta','lowgamma','highgamma'
 display(fMode)
 display(NumICs)
-display(FreqBands)
 %body of the function
-
-
 switch fMode
     case 'compute'
         f.isa = [0.02 0.5];
@@ -41,9 +38,6 @@ switch fMode
         Fs = T.Fs(indDB);      
         nRows = T.nRows(indDB);
         nCols = T.nCols(indDB);
-        
-        % Gets AC or DC coupling from a single index of the files
-        % selection. Thus it works on groups of specific DC/AC coupled data
         if T.CoupledAC(indDB) == 1 & T.CoupledDC(indDB) ==0
             Coupling ='.AC';
         elseif T.CoupledAC(indDB) == 0 & T.CoupledDC(indDB) ==1
@@ -52,31 +46,27 @@ switch fMode
             Coupling ='';
         end
         
-        % if AC coupled data it is downsampled 
-        DownFact = [];
         if strcmp(Coupling, '.AC') | strcmp(Coupling, '')
             if T.depth(indDB) == 1 & T.SingleShank(indDB) == 0
                 DownFact = 6;
             elseif T.depth(indDB)==0 
                 DownFact = 3;
             end
-            
-            Fs = Fs/DownFact;
         end
-        
+        Fs = Fs/DownFact;
         display(Fs)
-        
-        
         szVal = size(val);
-        if szVal(2)>=1 %if val is provided multiple LFP files are concatenated, if not, only one is taken specified by FileName
+        if szVal(2)>=1
             InputPathState = '/storage2/ramon/data/DB/Files/';
             Lfp=[];
             
             SelectedPeriods = [];
             for i = 1:length(val)
-                
+                %force use of interpolated data and devices with same
+                %number of channels, Fs, nCols and nRows
+                % deal with brain states
                 Tend = 0;
-                if contains(extension,'interp') %force use of interpolated files
+                if contains(extension,'interp')
                     dn = split(val{1},'-');
                     Device = [dn{1} '-' dn{2}];
                     if contains(T.FileName(indDB),'ECoG')
@@ -89,10 +79,9 @@ switch fMode
                     
                     display(FileName, 'loading file for Lfp concatenation across recordings')
                     LfpT = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
-                    if DownFact 
-                        LfpT = ButFilter(LfpT,2,1/DownFact,'low');
-                        LfpT = LfpT(1:DownFact:end,:);
-                    end
+                    LfpT = ButFilter(LfpT,2,1/DownFact,'low');
+                    
+                    LfpT = LfpT(1:DownFact:end,:);
                     szLfp = size(Lfp);
                     Tend = szLfp(1)/Fs;
                     
@@ -177,8 +166,6 @@ switch fMode
             out.(FreqBands{iFreq}).W = W;
             out.(FreqBands{iFreq}).Freq = f.(FreqBands{iFreq});
             out.Freqs = FreqBands;
-            out.val = val;
-            out.MinDurationStates = MinDurationStates;
             
         end
         
@@ -187,11 +174,9 @@ switch fMode
         else
             save(strcat(OutputPathStates,T.RecordingId{indDB},Coupling,'.',BrainState,'.ICA.mat'),'out', '-v7.3')
         end
-    
-
+        
     case 'display'
-        % the val must be generated accordingly to the data because indDB
-        % is used to find the DC/AC coupling
+        
         if T.CoupledAC(indDB) == 1 & T.CoupledDC(indDB) ==0
             Coupling ='.AC';
         elseif T.CoupledAC(indDB) == 0 & T.CoupledDC(indDB) ==1
@@ -202,9 +187,9 @@ switch fMode
         
         szVal = size(val);
         if szVal(2)>=1
-            load(strcat(OutputPathStates,'Group',Coupling,'.',BrainState,DevType,'.ICA.mat'),'out')
+            load(strcat(OutputPathStates,'Group',Coupling,'.',BrainState,'.ICA.mat'),'out')
         else
-            load(strcat(OutputPathStates,T.RecordingId{indDB},Coupling,'.',BrainState,DevType,'.ICA.mat'),'out')
+            load(strcat(OutputPathStates,T.RecordingId{indDB},Coupling,'.',BrainState,'.ICA.mat'),'out')
         end
         
         for iFreq = 1:length(FreqBands)
@@ -222,9 +207,8 @@ switch fMode
                 elseif T.depth(indDB)==0 
                     DownFact = 3;
                 end
-                Fs = Fs/DownFact;
-            
             end
+            Fs = Fs/DownFact;
             
             %display components map
             [bX, bY]= meshgrid([1:nCols]',[1:nRows]');
@@ -234,19 +218,75 @@ switch fMode
             title(FreqBands{iFreq})
             for i = 1:NumICs
                 subplot(floor(sqrt(NumICs))+1,floor(sqrt(NumICs))+1,i)
-                if T.depth(indDB)==1 & T.SingleShank(indDB)==1
-                    imagesc(A(:,i))
-                else
-                    F=  scatteredInterpolant(v,w,A(:,i));
-                    bF = F(bX,bY);
-                    imagesc(bF)
-                end
+                F=  scatteredInterpolant(v,w,A(:,i));
+                bF = F(bX,bY);
+                imagesc(bF)
     %             caxis([-0.3 0.3])
                 colorbar
 
                 title(['index=' num2str(i)])
             end
             
+            
+            
+%             figure()
+%             title(FreqBands{iFreq})
+%             hold on
+%             nfft =2^14;
+%             nperov = 2^12;
+%             for indIC = 1:length(out.(FreqBands{iFreq}).ICAsig(:,1))
+%                 subplot(floor(sqrt(NumICs))+1,floor(sqrt(NumICs))+1,indIC)
+% 
+%                 [ppx, f] = pwelch(out.(FreqBands{iFreq}).ICAsig(indIC,:),nfft,nperov,nfft,Fs);
+%                 plot(f,ppx)
+%                 set(gca,'XScale','log')
+%                 set(gca,'YScale','log')
+%             end
+            
+            
+
+    %         tRatio = SpecStates.RawSpecStates.t;
+    %         tICA = (1:length(out.ICAsig(1,:)))/Fs;
+
+    %         figure()
+    %         hold on
+    %         for indIC = 1:length(out.ICAsig(:,1))
+    %             subplot(floor(sqrt(NumICs))+1,floor(sqrt(NumICs))+1,indIC)
+    %             
+    %             display(indIC,'computing coherence for IC with index')
+    %             TandIC = [tICA',out.ICAsig(indIC,:)'];
+    %             ICAsig2 = Interpolate(TandIC,tRatio,'trim','off');
+    %             ICAsig2(isnan(ICAsig2))=0;
+    %             
+    %             [cxy,f] = mscohere(ICAsig2(:,2),PerStates.bands.ratio,hamming(100),80,100,1/(tRatio(2)-tRatio(1)));
+    %             plot(f,cxy)
+    %             set(gca,'XScale','log')
+    %             set(gca,'YScale','linear')
+    %             set(gca,'Ylim',[0 0.3])
+    %             set(gca,'Xlim',[0.005 0.5])
+    %         end
+
+    %         figure()
+    %         ax1 = subplot(3,1,1);
+    %         TandIC = [tICA',out.ICAsig(33,:)'];
+    %         ICAsig2 = Interpolate(TandIC,tRatio,'trim','off');
+    %         ICAsig2(isnan(ICAsig2))=0;
+    %         [cxy,f] = mscohere(ICAsig2(:,2),PerStates.bands.ratio,hamming(100),80,100,1/(tRatio(2)-tRatio(1)));
+    %         plot(f,cxy)
+    %         set(gca,'XScale','log')
+    %         set(gca,'YScale','linear')
+    %         set(gca,'Ylim',[0 0.3])
+    %         set(gca,'Xlim',[0.005 0.5])
+    %         
+    %         ax2 = subplot(3,1,2);
+    %         plot(tRatio,ICAsig2(:,2),'b')
+    %         ax3 = subplot(3,1,3);
+    %         plot(tRatio,PerStates.bands.ratio,'r')
+    %         
+    %         linkaxes([ax1, ax2, ax3],'x');
+
+            %dim A = (nCh rows x NumICs cols)
+            %plot coefficients (loadings)
             
             SelectICs = input('indices of ICs to further display');
             [bX, bY]= meshgrid([1:nCols]',[1:nRows]');
@@ -257,13 +297,9 @@ switch fMode
             for i = SelectICs
                 figure()
                 subplot(1,3,1)
-                if T.depth(indDB)==1 & T.SingleShank(indDB)==1
-                    imagesc(A(:,i))
-                else
-                    F=  scatteredInterpolant(v,w,A(:,i));
-                    bF = F(bX,bY);
-                    imagesc(bF)
-                end
+                F=  scatteredInterpolant(v,w,A(:,i));
+                bF = F(bX,bY);
+                imagesc(bF)
                 colorbar
                 subplot(1,3,[2,3])
                 tICA = (1:length(out.(FreqBands{iFreq}).ICAsig(i,:)))/Fs;
@@ -287,10 +323,6 @@ switch fMode
         nCols = T.nCols(indDB); 
         nCh = T.NumCh(indDB);    
         
-        %if val contains more than one device the statistical test is run
-        %across devices (i.e. animals). If not it is computed across
-        %recordings in the indicated device/animal
-        
         dev = split(val{1},'-');
         dev = [dev{1} '-' dev{2}];
         WithinGroup = [];
@@ -312,7 +344,7 @@ switch fMode
             if length(find(WithinGroup == 1)) == length(val) %across sessions in one animal
                 
                 for Coupling = CouplingCell
-                    load(strcat(OutputPathStates,dev,'/',val{i},'/States/',val{i},Coupling,'.',BrainState,DevType,'.ICA.mat'),'out')  
+                    load(strcat(OutputPathStates,dev,'/',val{i},'/States/',val{i},Coupling,'.',BrainState,'.ICA.mat'),'out')  
                     if strcmp(Coupling,'.DC')
                         out0 = out;
                     else
@@ -329,8 +361,8 @@ switch fMode
                 else
                     for iC = 1:length(CouplingCell)
                         Coupling = CouplingCell{iC};
-                        display(strcat(OutputPathStates,dev,'/GroupsAnalysis/','Group',Coupling,'.',BrainState,DevType,'.ICA.mat'))
-                        load(strcat(OutputPathStates,dev,'/GroupsAnalysis/','Group',Coupling,'.',BrainState,DevType,'.ICA.mat'),'out')
+                        display(strcat(OutputPathStates,dev,'/GroupsAnalysis/','Group',Coupling,'.',BrainState,'.ICA.mat'))
+                        load(strcat(OutputPathStates,dev,'/GroupsAnalysis/','Group',Coupling,'.',BrainState,'.ICA.mat'),'out')
                         if strcmp(Coupling,'.DC')
                             out0 = out;
                         else
@@ -399,83 +431,75 @@ switch fMode
             Coupling ='.DC';
         else
             Coupling ='';
-        end   
-        nRows = T.nRows(indDB);
-        nCols = T.nCols(indDB); 
-        nCh = T.NumCh(indDB);    
-        
-        
-        iFreq = 1; %for the Ph-amp coupling only the first band in FreqBands and the first in FreqBandsHigh are taken
-        
-        load(strcat(OutputPathStates,'Group',CouplingLow,'.',BrainState,DevType,'.ICA.mat'),'out'); 
-        outL = out;
-        AL = outL.(FreqBands{1}).A;
-        load(strcat(OutputPathStates,'Group',CouplingHigh,'.',BrainState,DevType,'.ICA.mat'),'out'); 
-        outH = out;
-        AH = outH.(FreqBandsHigh{1}).A;
-        
-        NumICsL = length(outL.(FreqBands{1}).ICAsig(:,1));
-        NumICsH = length(outH.(FreqBandsHigh{1}).ICAsig(:,1));
-        %display components map
-        [bX, bY]= meshgrid([1:nCols]',[1:nRows]');
-        v = reshape(bX,[],1);
-        w = reshape(bY,[],1);
-        figure()
-        title(FreqBands{iFreq})
-        for i = 1:NumICsL
-            subplot(floor(sqrt(NumICs))+1,floor(sqrt(NumICs))+1,i)
-            F=  scatteredInterpolant(v,w,AL(:,i));
-            bF = F(bX,bY);
-            imagesc(bF)
-%             caxis([-0.3 0.3])
-            colorbar
-
-            title(['index=' num2str(i)])
-        end
-        figure()
-        title(FreqBandsHigh{iFreq})
-        for i = 1:NumICsH
-            subplot(floor(sqrt(NumICs))+1,floor(sqrt(NumICs))+1,i)
-            F=  scatteredInterpolant(v,w,AH(:,i));
-            bF = F(bX,bY);
-            imagesc(bF)
-%             caxis([-0.3 0.3])
-            colorbar
-
-            title(['index=' num2str(i)])
         end
         
-        indicesIC = input('indices of low frequency ICs [in brackets]');        
-        indicesIC2 = input('indices of high frequency ICs [in brackets]');
+        if strcmp(Coupling,'')
+            CouplingCell = {''};
+        else
+            CouplingCell = {'.DC','.AC'};
+        end
+        for iC = 1:length(CouplingCell)
+            Coupling = CouplingCell{iC};
+            load(strcat(OutputPathStates,'Group',Coupling,'.',BrainState,'.ICA.mat'),'out'); 
+            if strcmp(Coupling,'.DC')
+                out0 = out;
+            else
+                fn = fieldnames(out);
+                for iF = 1:length(fieldnames(out))
+                    out0.(fn{iF}) = out.(fn{iF});
+                end
+            end
+        end
         
         Fs = T.Fs(indDB);
-        nRows = T.nRows(indDB);
-        nCols = T.nCols(indDB);        
-        
-        PhAmpC_amp=[];
-        PhAmpC_angle=[];
-        PhAmpC_amp_PowSc=[];
-        PhAmpC_angle_PowSc=[];
-        
-        if strcmp(CouplingLow,'.DC') & strcmp(CouplingHigh,'.AC')
-            Fs = T.Fs(indDB-1);
-            FsLow = T.Fs(indDB);
-%             if strcmp(Coupling, '.AC') | strcmp(Coupling, '')
+        Fs1 = 65.10416667;
+        if strcmp(Coupling, '.AC') | strcmp(Coupling, '')
             if T.depth(indDB) == 1 & T.SingleShank(indDB) == 0
                 DownFact = 6;
             elseif T.depth(indDB)==0 
                 DownFact = 3;
             end
-            Fs = Fs/DownFact;
-%             end
         end
         
-        display(iFreq,'frequency index Ph-Amp')
-        outL.(FreqBands{iFreq}).ICAsigInt=[];
-        for i = indicesIC %1:length(out.(FreqBands{iFreq}).ICAsig(:,1))
-            display(i,'IC index of low freqs')
-
-            for i2 = indicesIC2 %1:length(out.(FreqBands{iFreq+IndLoopF}).ICAsig(:,1))
+        Fs2 = 651.0416667/DownFact;
+%         Fs = Fs/DownFact;
+        
+        nRows = T.nRows(indDB);
+        nCols = T.nCols(indDB);        
+        
+        PhAmpC_amp=[];
+        PhAmpC_angle=[];
+        
+        if PhAmpKlustersAnimal
+            display(strcat('../../../data/DB/Files/GroupsAnalysis/','GroupKlusters','.ICA.mat'))
+            load(strcat('../../../data/DB/Files/GroupsAnalysis/','GroupKlusters','.ICA.mat'),'out2')
+            out1 = out2;
+            display(fieldnames(out1.clustering))
+            for iFreq = 1:length(fieldnames(out1.clustering))
+                counter = 0;
+                for ik = 1:length(out1.clustering.(FreqBands{iFreq})(:,1))
+                    indT = find(out1.clustering.(FreqBands{iFreq})(ik,:)~=0);
+                    if length(indT)== length(out1.clustering.(FreqBands{iFreq})(1,:))
+                        counter = counter+1;
+                        if counter ==1
+                            goodKList.(FreqBands{iFreq}) = ik;
+                        else
+                            goodKList.(FreqBands{iFreq}) = [goodKList.(FreqBands{iFreq}), ik];
+                        end
+                    end
+                end
+            end
+        end
+        
+        if length(fieldnames(out0)) >=2
+            for IndLoopF = 1:length(fieldnames(out0))-1
+                for iFreq = 1:length(fieldnames(out0))-IndLoopF
+                    display(iFreq,'frequency index Ph-Amp')
+                    display(IndLoopF,'Inter frequency step')
+                    for i = 1:length(out0.(FreqBands{iFreq}).ICAsig(:,1))
+                        display(i,'IC index of low freqs')
+                        
+                        for i2 = 1:length(out0.(FreqBands{iFreq+IndLoopF}).ICAsig(:,1))
 % --------------------- implementation 1
 %                             pow = abs(hilbert(out.(FreqBands{iFreq+IndLoopF}).ICAsig(i2,:)));
 %                             ph = angle(hilbert(out.(FreqBands{iFreq}).ICAsig(i,:)));
@@ -483,138 +507,103 @@ switch fMode
 %                             R = sum(exp(1i*ph).*pow)./powsum;
 %                             PhAmpC_amp.([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}])(i,i2) = abs(R);
 %                             PhAmpC_angle.([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}])(i,i2) = angle(R);
-
+                            
 % --------------------- implementation 2
-                FNi = Fs/2;
-                fPow = [outH.(FreqBandsHigh{iFreq}).Freq/FNi; (outH.(FreqBandsHigh{iFreq}).Freq+1)/FNi]; %the frequency band in the second position is only provided to temporarily avoid a bug//it is not used
-                fPh = [outL.(FreqBands{iFreq}).Freq/FNi; (outL.(FreqBands{iFreq}).Freq+1)/FNi]; 
-                display(fPow)
-                display(fPh)
-                % interpolate DC coupled ICs
-                if strcmp(CouplingLow,'.DC') & strcmp(CouplingHigh,'.AC')
-                    size([[1:length(outL.(FreqBands{iFreq}).ICAsig(i,:))]'/FsLow, outL.(FreqBands{iFreq}).ICAsig(i,:)'])
-                    size([1:length(outH.(FreqBandsHigh{iFreq}).ICAsig(1,:))]'/Fs)
-                    sig = Interpolate([[1:length(outL.(FreqBands{iFreq}).ICAsig(i,:))]'/FsLow, outL.(FreqBands{iFreq}).ICAsig(i,:)'],[1:length(outH.(FreqBandsHigh{iFreq}).ICAsig(1,:))]'/Fs,'trim','off');
-                    size(sig)
-                    size(sig(:,2)')
-                    outL.(FreqBands{iFreq}).ICAsigInt(i,:) = sig(:,2)';
-                    size(outL.(FreqBands{iFreq}).ICAsigInt(i,:)')
-                    size(outH.(FreqBandsHigh{iFreq}).ICAsig(i2,:)')
-                    size(outL.(FreqBands{iFreq}).ICAsig(i,:)')
-                    [out2, ~, ~] = PowerPhasePairsR(outL.(FreqBands{iFreq}).ICAsigInt(i,10:end-1000)',  fPh, outH.(FreqBandsHigh{iFreq}).ICAsig(i2,10:end-1000)' , fPow, 1,'but',@PowerModulation);
-                    [out3, ~, ~] = PowerPhasePairsR2(outL.(FreqBands{iFreq}).ICAsigInt(i,10:end-1000)',  fPh, outH.(FreqBandsHigh{iFreq}).ICAsig(i2,10:end-1000)' , fPow, 1,'but',@PowerModulation_PowerScaled);
-                else
-               
-                    [out2, ~, ~] = PowerPhasePairsR(outL.(FreqBands{iFreq}).ICAsig(i,:)',  fPh, outH.(FreqBandsHigh{iFreq}).ICAsig(i2,:)' , fPow, 1,'but',@PowerModulation);
-                    [out3, ~, ~] = PowerPhasePairsR2(outL.(FreqBands{iFreq}).ICAsig(i,:)',  fPh, outH.(FreqBandsHigh{iFreq}).ICAsig(i2,:)' , fPow, 1,'but',@PowerModulation_PowerScaled);
+                            
+                            if PhAmpKlustersAnimal
+                                if find(out1.clustering.(FreqBands{iFreq})(goodKList.(FreqBands{iFreq}),PhAmpKlustersAnimal) == i) & find(out1.clustering.(FreqBands{iFreq+IndLoopF})(goodKList.(FreqBands{iFreq+IndLoopF}),PhAmpKlustersAnimal)==i2)
+                                    if (iFreq == 1 | iFreq == 2) & iFreq+IndLoopF >= 3 
+                                        
+                                        FNi = Fs2/2;
+                                        fPow = [out0.(FreqBands{iFreq+IndLoopF}).Freq/FNi; (out0.(FreqBands{iFreq+IndLoopF}).Freq+1)/FNi]; %the frequency band in the second position is only provided to temporarily avoid a bug//it is not used
+                                        fPh = [out0.(FreqBands{iFreq}).Freq/FNi; (out0.(FreqBands{iFreq}).Freq+1)/FNi]; 
+                                        display(out0.(FreqBands{iFreq+IndLoopF}).Freq,'*')
+                                        display(out0.(FreqBands{iFreq}).Freq,'*')
+                                        
+                                        size([[1:length(out0.(FreqBands{iFreq}).ICAsig(i,:))]'/Fs1 out0.(FreqBands{iFreq}).ICAsig(i,:)'])
+                                        
+                                        ICAsigInter = Interpolate([[1:length(out0.(FreqBands{iFreq}).ICAsig(i,:))]'/Fs1 out0.(FreqBands{iFreq}).ICAsig(i,:)'],[1:length(out0.(FreqBands{iFreq+IndLoopF}).ICAsig(i,:))]/Fs2,'trim','off');
+                                        ICAsigInter = ICAsigInter(:,2)';
+                                        
+                                    elseif iFreq == 1 & iFreq+IndLoopF ==2
+                                        FNi = Fs1/2;
+                                        fPow = [out0.(FreqBands{iFreq+IndLoopF}).Freq/FNi; (out0.(FreqBands{iFreq+IndLoopF}).Freq+1)/FNi]; %the frequency band in the second position is only provided to temporarily avoid a bug//it is not used
+                                        fPh = [out0.(FreqBands{iFreq}).Freq/FNi; (out0.(FreqBands{iFreq}).Freq+1)/FNi]; 
+                                        display(out0.(FreqBands{iFreq+IndLoopF}).Freq,'**')
+                                        display(out0.(FreqBands{iFreq}).Freq,'**')
+                                        
+                                        ICAsigInter = out0.(FreqBands{iFreq}).ICAsig(i,:);
+                                        
+                                    elseif iFreq >= 3 & iFreq+IndLoopF >=3
+                                        FNi = Fs2/2;
+                                        fPow = [out0.(FreqBands{iFreq+IndLoopF}).Freq/FNi; (out0.(FreqBands{iFreq+IndLoopF}).Freq+1)/FNi]; %the frequency band in the second position is only provided to temporarily avoid a bug//it is not used
+                                        fPh = [out0.(FreqBands{iFreq}).Freq/FNi; (out0.(FreqBands{iFreq}).Freq+1)/FNi]; 
+                                        
+                                        display(out0.(FreqBands{iFreq+IndLoopF}).Freq,'**')
+                                        display(out0.(FreqBands{iFreq}).Freq,'**')
+                                        
+                                        
+                                        ICAsigInter = out0.(FreqBands{iFreq}).ICAsig(i,:);
+                                    end
+                                    display(size(ICAsigInter))
+                                    display(size(out0.(FreqBands{iFreq+IndLoopF}).ICAsig(i2,:)'))
+                                    display(fPow*FNi)
+                                    display(fPh*FNi)
+                                    [out2, ~, ~] = PowerPhasePairsR(ICAsigInter',  fPh, out0.(FreqBands{iFreq+IndLoopF}).ICAsig(i2,:)' , fPow, 1,'but',@PowerModulation);
+                                    PhAmpC_amp.([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}])(i,i2) = out2.Ramp(1,1);
+                                    PhAmpC_angle.([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}])(i,i2) = out2.phbins(find(sq(out2.pow_dens(:,1,1))==max(sq(out2.pow_dens(:,1,1)))),1,1);
+                                else
+                                    continue
+                                end
+                            else
+                                [out2, ~, ~] = PowerPhasePairsR(out0.(FreqBands{iFreq}).ICAsig(i,:)',  fPh, out0.(FreqBands{iFreq+IndLoopF}).ICAsig(i2,:)' , fPow, 1,'but',@PowerModulation);
+                                PhAmpC_amp.([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}])(i,i2) = out2.Ramp(1,1);
+                                PhAmpC_angle.([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}])(i,i2) = out2.phbins(find(sq(out2.pow_dens(:,1,1))==max(sq(out2.pow_dens(:,1,1)))),1,1);
+                            end
+                        end
+                    end
+
+                    
+                    figure()
+                    imagesc(PhAmpC_amp.([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}]))
+                    title([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}])
+                    colormap('parula')
+                    colorbar()
+                    figure()
+                    imagesc(PhAmpC_angle.([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}]))
+                    title([FreqBands{iFreq} 'to' FreqBands{iFreq+IndLoopF}])
+                    colormap('hsv')
+                    colorbar()
                 end
-                PhAmpC_amp.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}])(i,i2) = out2.Ramp(1,1);
-                PhAmpC_angle.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}])(i,i2) = out2.phbins(find(sq(out2.pow_dens(:,1,1))==max(sq(out2.pow_dens(:,1,1)))),1,1);
-                PhAmpC_amp_PowSc.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}])(i,i2) = out3.Ramp(1,1);
-                PhAmpC_angle_PowSc.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}])(i,i2) = out3.phbins(find(sq(out3.pow_dens(:,1,1))==max(sq(out3.pow_dens(:,1,1)))),1,1);
-
             end
+        else
+            display('Phase-amplitude coupling not computed because only one frequency provided')
         end
-
-
-        figure()
-        title([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}])
-        subplot(1,2,1)
-        imagesc(PhAmpC_amp.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}]))
-        colormap('parula')
-        colorbar()
-        subplot(1,2,2)
-        a = PhAmpC_amp.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}]);
-        imagesc(reshape(a(find(a~=0)),[length(indicesIC),length(indicesIC2)]))
-        colormap('parula')
-        colorbar()
-        
-        
-        figure()
-        subplot(1,2,1)
-        imagesc(PhAmpC_angle.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}]))
-        colormap('hsv')
-        colorbar()
-        subplot(1,2,2)
-        a = PhAmpC_angle.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}]);
-        imagesc(reshape(a(find(a~=0)),[length(indicesIC),length(indicesIC2)]))
-        colormap('hsv')
-        colorbar()
-
-        figure()
-        subplot(1,2,1)
-        imagesc(PhAmpC_amp_PowSc.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}]))
-        colormap('parula')
-        colorbar()
-        subplot(1,2,2)
-        a = PhAmpC_amp_PowSc.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}]);
-        imagesc(reshape(a(find(a~=0)),[length(indicesIC),length(indicesIC2)]))
-        colormap('parula')
-        colorbar()
-        title([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq} '-power weigthed'])
-        
-        
-        figure()
-        subplot(1,2,1)
-        imagesc(PhAmpC_angle_PowSc.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}]))
-        colormap('hsv')
-        colorbar()
-        subplot(1,2,2)
-        a = PhAmpC_angle_PowSc.([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq}]);
-        imagesc(reshape(a(find(a~=0)),[length(indicesIC),length(indicesIC2)]))
-        colormap('hsv')
-        colorbar()
-        title([FreqBands{iFreq} 'to' FreqBandsHigh{iFreq} '-power weigthed'])
-          
         while true
-            out2=struct();
-            AngularPlotIndices = input('IN BRAKETS! [IC of ph, IC of amplitude]');
-            display(AngularPlotIndices)
+            AnglularPlotIndices = input('IN BRAKETS! [ind of the ph-freq, steps between ph and amp freq, IC of ph, IC of amplitude');
 
-            [out2, ~, ~] = PowerPhasePairsR(outL.(FreqBands{iFreq}).ICAsig(AngularPlotIndices(1),10:end-1000)',  fPh, outH.(FreqBandsHigh{iFreq}).ICAsig(AngularPlotIndices(2),10:end-1000)' , fPow, 1,'but',@PowerModulation);
+            [out2, ~, ~] = PowerPhasePairsR(out.(FreqBands{AnglularPlotIndices(1)}).ICAsig(AnglularPlotIndices(3),:)',  fPh, out.(FreqBands{AnglularPlotIndices(1)+AnglularPlotIndices(2)}).ICAsig(AnglularPlotIndices(4),:)' , fPow, 1,'but',@PowerModulation);
             
-            display(continues)
             
             [bX, bY]= meshgrid([1:nCols]',[1:nRows]');
             v = reshape(bX,[],1);
             w = reshape(bY,[],1);
             figure()
             subplot(1,3,1)
-            F=  scatteredInterpolant(v,w,outL.(FreqBands{1}).A(:,AngularPlotIndices(1)));
+            F=  scatteredInterpolant(v,w,out.(FreqBands{AnglularPlotIndices(1)}).A(:,AnglularPlotIndices(3)));
             bF = F(bX,bY);
             imagesc(bF)
             colorbar
             title('IC of ph-frequency')
             subplot(1,3,2)
-            F=  scatteredInterpolant(v,w,outH.(FreqBandsHigh{1}).A(:,AngularPlotIndices(2)));
+            F=  scatteredInterpolant(v,w,out.(FreqBands{AnglularPlotIndices(1)+AnglularPlotIndices(2)}).A(:,AnglularPlotIndices(4)));
             bF = F(bX,bY);
             imagesc(bF)
             colorbar
             title('IC of pow-frequency')
             subplot(1,3,3)
             polarplot(out2.phbins(:,1,1),sq(out2.pow_dens(:,1,1))'); axis tight; box off
-            
         end
-        
-%         figure()
-%         ax1 = subplot(3,1,1);
-%         tRatio = SpecStates.RawSpecStates.t;
-%         tICA = (1:length(out.(FreqBands{iFreq}).ICAsig(i,:)))/Fs;
-%         TandIC = [tICA',out.ICAsig(33,:)'];
-%         ICAsig2 = Interpolate(TandIC,tRatio,'trim','off');
-%         ICAsig2(isnan(ICAsig2))=0;
-%         [cxy,f] = mscohere(ICAsig2(:,2),PerStates.bands.ratio,hamming(100),80,100,1/(tRatio(2)-tRatio(1)));
-%         plot(f,cxy)
-%         set(gca,'XScale','log')
-%         set(gca,'YScale','linear')
-%         set(gca,'Ylim',[0 0.3])
-%         set(gca,'Xlim',[0.005 0.5])
-%         
-%         ax2 = subplot(3,1,2);
-%         plot(tRatio,ICAsig2(:,2),'b')
-%         ax3 = subplot(3,1,3);
-%         plot(tRatio,PerStates.bands.ratio,'r')
-%         
-%         linkaxes([ax1, ax2, ax3],'x');
-
 end
+
+

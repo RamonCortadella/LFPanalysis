@@ -1,7 +1,7 @@
-function out = BrainStates2(OutPathBrainStates,OutputPathTable,FileNameDB, T, indDB,ind, varargin)
+function out = BrainStates2(OutPathBrainStates,FileNameDB, T, indDB,ind, varargin)
 %function out = FunctionName(FileBase ,fMode, Arg1, Arg2)
 %here is the help message :
-[fMode, MinThetaDeltaRatio, MinTimeRatio, MinSpindleDeltaRatio,MinDurationHVS_sec,ThetaBand,HVSband,interactive,TargetState] = DefaultArgs(varargin,{'compute',0.8, 20,4.5,1, [[3,5];[6,9]], [[0,4];[11 30]],'on','all'});
+[fMode, MinThetaDeltaRatio, MinTimeRatio, MinSpindleDeltaRatio,MinDurationHVS_sec,ThetaBand,HVSband,interactive,TargetState,StatesCell] = DefaultArgs(varargin,{'compute',0.8, 20,4.5,1, [[3,5];[6,9]], [[0,4];[11 30]],'on','multiple',{'PerREM';'PerSWS';'';'';'';'';'';''}});
 
 %body of the function
 switch fMode
@@ -9,11 +9,11 @@ switch fMode
         
         display(['loading ' 'Motor and Spectrogram files'])
         
-        MotorState = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'-MotorState.mat'));
-        Periods = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'-Periods.mat'));
-        MocapDuration = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'-MocapDuration.mat'));
-        SpecHVS = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'-SpecHVS.mat'));
-        SpecStates = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'-SpecStates.mat'));
+        MotorState = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'.MotorState.mat'));
+        Periods = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'.Periods.mat'));
+        MocapDuration = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'.MocapDuration.mat'));
+        SpecHVS = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'.SpecHVS.mat'));
+        SpecStates = load(strcat(OutPathBrainStates,T.RecordingId{indDB},'.SpecStates.mat'));
         Trigger = str2num(T.TriggerTimes{indDB});
         FsMocap = T.FsMocap(indDB);
         
@@ -290,7 +290,7 @@ switch fMode
                  % Check synchrony between ephys and mocap
                 FinalTime = max(max([PerRun',PerQui',PerSle']))+TriggerStart;
 
-                if (TriggerStop - TimeTolerance <= FinalTime) &  ( FinalTime <= TriggerStop + TimeTolerance)
+                if (TriggerStop - TimeTolerance <= FinalTime) &&  ( FinalTime <= TriggerStop + TimeTolerance)
                     display(FinalTime,'time expected trigger')
                     display(TriggerStop, 'time trigger')
                     display(strcat('Properly synch Mocap with ',num2str(TimeTolerance),'s time tolerance'))
@@ -545,7 +545,7 @@ switch fMode
             else
                 %save structure with brain state periods
                 PerStates = struct('PerREM',PerREM,'PerSWS',PerSWS,'PerTHE',PerTHE,'PerNThe',PerNThe,'PerMicroA',PerMicroA, 'PerHVS', PerHVS,'bands',bands,'bandsHVS',bandsHVS);
-                save(strcat(OutPathBrainStates,T.RecordingId{indDB},'-PerStates.mat'),'PerStates')
+                save(strcat(OutPathBrainStates,T.RecordingId{indDB},'.PerStates.mat'),'PerStates')
                 T.ThresholdThetaDelta(indDB) = MinThetaDeltaRatio;
                 T.ThresholdSpindleDelta(indDB) = MinSpindleDeltaRatio;
                 out.T = T;
@@ -558,11 +558,11 @@ switch fMode
         MinThetaDeltaRatio = T.ThresholdThetaDelta(indDB);
         MinSpindleDeltaRatio = T.ThresholdSpindleDelta(indDB);
         
-        PerStates = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'-PerStates.mat'));
-        MotorState = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'-MotorState.mat'));
-        SpecStates = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'-SpecStates.mat'));
-        SpecHVS = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'-SpecHVS.mat'));
-        Periods = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'-Periods.mat'));
+        PerStates = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'.PerStates.mat'));
+        MotorState = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'.MotorState.mat'));
+        SpecStates = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'.SpecStates.mat'));
+        SpecHVS = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'.SpecHVS.mat'));
+        Periods = load(strcat(OutPathBrainStates, T.RecordingId{indDB},'.Periods.mat'));
         Trigger = str2num(T.TriggerTimes{indDB});
         TriggerStart = Trigger(1);
         
@@ -831,20 +831,19 @@ switch fMode
         Fs = T.Fs;
         
         TargetStateLabel = '';
-        if strcmp(TargetState,'all')
-            TargetStateLabel='all';
-            StatesCell = {'PerREM';'PerSWS';'';'';'';'';'';''};
+        if strcmp(TargetState,'multiple')
+            TargetStateLabel='multiple';
         else
             TargetState = ['Per' TargetState];
         end
             
         for iFile =1:length(ind)
-            display(T.RecordingId{ind(iFile)},'Considering File')
+            display(T.RecordingId{indDB},'Considering File')
             
-            OutPathStates = ['../../../data/DB/Files/' T.DeviceName{ind(iFile)} '/States/'];
-            
-            PerStates = load(strcat(OutPathStates, T.RecordingId{ind(iFile)},'-PerStates.mat'));
-            SpecHVS = load(strcat(OutPathStates, T.RecordingId{ind(iFile)},'-SpecHVS.mat'));
+            OutPathStates = ['../../../data/DB/Files/' T.DeviceName{indDB} '/' T.RecordingId{indDB} '/States/'];
+%             OutPathStates = OutPathBrainStates;
+            PerStates = load(strcat(OutPathStates, T.RecordingId{indDB},'.PerStates.mat'));
+            SpecHVS = load(strcat(OutPathStates, T.RecordingId{indDB},'.SpecHVS.mat'));
 
             WhitenedSpec = SpecHVS.SpecHVS.WhitenedSpecHVS;
             FsSpec = 1/(WhitenedSpec.wt(2)-WhitenedSpec.wt(1));
@@ -858,7 +857,7 @@ switch fMode
             
 
             for i = 1:length(fn)
-                if strcmp(TargetStateLabel,'all') 
+                if strcmp(TargetStateLabel,'multiple') 
                     if strcmp(fn{i},StatesCell{i})
                         PerStateTemp = PerStates.PerStates.(fn{i});
                         szTemp = size(PerStateTemp);
@@ -913,7 +912,7 @@ switch fMode
         
         DurationTh=40;
         
-        if strcmp(TargetStateLabel,'all')
+        if strcmp(TargetStateLabel,'multiple')
             IndicesLong = find(DurationState>=DurationTh);
             DurationAboveThresh = DurationState(IndicesLong);
         
@@ -967,7 +966,7 @@ switch fMode
             ylabel('counts')
             title(TargetState)            
         end
-        
+        out=1;
 end
 
 

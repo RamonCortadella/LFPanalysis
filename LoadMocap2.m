@@ -1,4 +1,4 @@
-function LoadMocap2(FileName,T,IndDB, InputPath, OutputPath,OutputPathTable, FileNameDB, varargin)
+function LoadMocap2(MocapFile,T,IndDB, OutputPath, varargin)
 % this function loads and processes (low pass filter and formating)
 % mocap data and calls "motorstates" function which classifies the motor
 % state
@@ -10,10 +10,7 @@ switch fMode
         %if you give output from the function make it structure :
         nCh = T.NumCh(IndDB);
         
-        fn = split(FileName,'-');
-        rn = split(fn{3},'.');
-        MocapFile = strcat(fn{1},'-',fn{2},'-rec',rn{1}(4:end),'.csv');
-        MocapT = readtable(strcat(InputPath,MocapFile)); %load csv file
+        MocapT = readtable(MocapFile); %load csv file
 
         %load params
         Fs = T.Fs(IndDB);
@@ -57,9 +54,9 @@ switch fMode
         fn = split(FileName,'-');
         rn = split(fn{3},'.');
         
-        save(strcat(OutputPath,fn{1},'-',fn{2},'-Rec',rn{1}(4:end),'-MotorState.mat'),'MotorStateMap');
-        save(strcat(OutputPath,fn{1},'-',fn{2},'-Rec',rn{1}(4:end),'-Periods.mat'),'Periods');
-        save(strcat(OutputPath,fn{1},'-',fn{2},'-Rec',rn{1}(4:end),'-MocapDuration.mat'),'MocapDuration');
+        save(strcat(OutputPath,T.RecordingId{indDB},'.MotorState.mat'),'MotorStateMap');
+        save(strcat(OutputPath,T.RecordingId{indDB},'.Periods.mat'),'Periods');
+        save(strcat(OutputPath,T.RecordingId{indDB},'.MocapDuration.mat'),'MocapDuration');
 %         save(strcat(OutputPath,fn{1},'-',fn{2},'-Rec',rn{1}(4:end),'-MocapDuration.mat'),'MocapDuration');
         
 %         T.LostMocapSamples(IndDB) = Broken;
@@ -70,8 +67,8 @@ switch fMode
         fn = split(FileName,'-');
         rn = split(fn{3},'.');
         
-        MotorStateMap = load(strcat(OutputPath,fn{1},'-',fn{2},'-Rec',rn{1}(4:end),'-MotorState.mat'));
-        Periods = load(strcat(OutputPath,fn{1},'-',fn{2},'-Rec',rn{1}(4:end),'-Periods.mat'));
+        MotorStateMap = load(strcat(OutputPath,T.RecordingId{indDB},'.MotorState.mat'));
+        Periods = load(strcat(OutputPath,T.RecordingId{indDB},'.Periods.mat'));
         MotorStateMap = MotorStateMap.MotorStateMap;
         Periods= Periods.Periods;
         

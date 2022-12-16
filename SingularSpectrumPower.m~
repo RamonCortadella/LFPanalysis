@@ -1,0 +1,279 @@
+function out = SingularSpectrumPower(InputPath,OutputPath,T,indDB,extension,varargin)
+%This function takes the ICA results as input to determine events related
+%to individual components and look for non-stationary sources related to
+%such events
+
+[BrainState, FreqBandsIC, FreqBandsSPA, SPACoupling,Twindow,TimeScaleGlue] = DefaultArgs(varargin,{'PerSWS',{'delta'},{'spindle','beta','lowgamma','highgamma'},'.AC',0.3,0.2}); %'isa','delta','theta','spindle','beta','lowgamma','highgamma'
+
+nCh = T.NumCh(indDB);
+nRows = T.nRows(indDB);
+nCols = T.nCols(indDB);
+Fs = T.Fs(indDB);
+
+load(InputPath,'out')
+fB.isa = [0.02 0.5];
+fB.delta = [0.5 5];
+fB.theta = [5 9];
+fB.spindle = [9 20];
+fB.beta = [20 30];
+fB.lowgamma = [30 50];
+fB.highgamma = [50 100];
+
+display(fieldnames(out))
+
+% The coupling of the data in the DB search, that must match that in
+% InputPath is used to compute the Coupling. If it is AC coupled the Fs is
+% corrected as in the ICA computation
+
+if T.CoupledAC(indDB) == 1 & T.CoupledDC(indDB) ==0
+    Coupling ='.AC';
+elseif T.CoupledAC(indDB) == 0 & T.CoupledDC(indDB) ==1
+    Coupling ='.DC';
+else
+    Coupling ='';
+end
+
+if strcmp(Coupling, '.AC') | strcmp(Coupling, '')
+    if T.depth(indDB) == 1 & T.SingleShank(indDB) == 0
+        DownFact = 6;
+    elseif T.depth(indDB)==0 
+        DownFact = 3;
+    end
+    Fs = Fs/DownFact;
+
+end
+
+%indicate a single frequency band that defines the IC used for the
+%triggered average
+A = out.(FreqBandsIC{1}).A;
+display(length(A(1,:)),'Index of IC in the displayed computation: CHECK FOR INCONSISTENCIES!!!')
+
+%display components map
+[bX, bY]= meshgrid([1:nCols]',[1:nRows]');
+v = reshape(bX,[],1);
+w = reshape(bY,[],1);
+figure()
+title(FreqBandsIC{1})
+NumICs = length(A(1,:));
+for i = 1:NumICs
+    subplot(floor(sqrt(NumICs))+1,floor(sqrt(NumICs))+1,i)
+    F=  scatteredInterpolant(v,w,A(:,i));
+    bF = F(bX,bY);
+    imagesc(bF)
+    colorbar
+
+    title(['index=' num2str(i)])
+end
+
+
+InputPathState = '/storage2/ramon/data/DB/Files/';
+Lfp=[];
+val = out.val;
+if strcmp(Coupling,'.DC') & strcmp(SPACoupling,'.AC')
+   FsSPA = T.Fs(indDB-1);
+else
+   FsSPA = T.Fs(indDB);
+end
+SelectedPeriods = [];
+for i = 1:length(val)
+
+    Tend = 0;
+    if contains(extension,'interp') %force use of interpolated files
+        dn = split(val{1},'-');
+        Device = [dn{1} '-' dn{2}];
+        if contains(T.FileName(indDB),'ECoG')
+            FileName = ['../../../data/DB/Files/' Device '/' val{i} '/' val{i} '.ECoG' SPACoupling extension];
+        elseif  contains(T.FileName(indDB),'Depth')
+            FileName = ['../../../data/DB/Files/' Device '/' val{i} '/' val{i} '.Depth' SPACoupling extension];
+        else
+            FileName = ['../../../data/DB/Files/' Device '/' val{i} '/' val{i} SPACoupling extension];
+        end
+
+        display(FileName, 'loading file for Lfp concatenation across recordings')
+        LfpT = LoadBinaryDAT(FileName, [0:nCh-1], nCh,1)';
+%         LfpT = ButFilter(LfpT,2,fB.(FreqBandsSPA{1})/(FsSPA)*2,'bandpass');
+            
+        szLfp = size(Lfp);
+        Tend = szLfp(1)/FsSPA;
+
+        Lfp = [Lfp; LfpT];
+
+        if BrainState
+            display(indDB)
+            display(T.RecordingId{indDB})
+
+            display(strcat(InputPathState,Device,'/',val{i},'/States/',val{i},'.PerStates.mat'))
+
+            PerStates = load(strcat(InputPathState,Device,'/',val{i},'/States/',val{i} ,'.PerStates.mat'));
+            SelectedPeriodsTemp = PerStates.PerStates.(BrainState);
+            DurationStates = SelectedPeriodsTemp(:,2)-SelectedPeriodsTemp(:,1);
+            SelectedPeriodsTemp = SelectedPeriodsTemp(find(DurationStates >=out.MinDurationStates),:); 
+            SelectedPeriodsTemp = SelectedPeriodsTemp + Tend;
+
+            SelectedPeriods = [SelectedPeriods; SelectedPeriodsTemp];
+%             DurationStates = DurationStates(find(DurationStates >=MinDurationStates));
+        end
+    else
+        display('ATTENTION! : Extension must contain "interp" processing step for comparable recordings!!!!! This process will crash in 100s')
+        pause(100)
+        break
+    end
+end
+
+
+LfpState = [];
+%concatenate Lfp for selected periods using a zeroing
+for i = 1:length(SelectedPeriods(:,1))
+    display(size(Lfp),'size Lfp')
+    display(floor(FsSPA*SelectedPeriods(i,:)), 'min and max samp Period')
+    LfpStateTemp = Lfp(floor(FsSPA*SelectedPeriods(i,1)+1):floor(FsSPA*SelectedPeriods(i,2))-1,:); 
+
+    WindowTemp = ones([length(LfpStateTemp(:,1)),1]);
+    Window1 = sigmoid([1:length(LfpStateTemp(:,1))]/FsSPA-10*TimeScaleGlue,TimeScaleGlue);
+    Window= WindowTemp.*Window1'.*flip(Window1');
+    Window = repmat(Window,1,nCh);
+    display(size(LfpStateTemp))
+    display(size(Window))
+    LfpStateTemp = LfpStateTemp.*Window;
+
+
+    LfpState = [LfpState; LfpStateTemp];
+end
+
+if strcmp(SPACoupling,'.AC')
+    LfpState = ButFilter(LfpState,2,[49 51]/(FsSPA)*2,'stop');
+    LfpState = ButFilter(LfpState,2,[99 101]/(FsSPA)*2,'stop');
+    LfpState = ButFilter(LfpState,2,[149 151]/(FsSPA)*2,'stop');
+end
+
+% compute spectrogram on concatenated Lfp
+% Parameters spectrogram
+nFFT = 128;
+if T.depth(indDB)==1 & T.SingleShank(indDB)==0
+    nFFT = 256;
+end
+
+pow = struct();
+for iCh = 1:nCh
+    display(iCh,'Computing spectrogram for Channel')
+
+%     display(size(LfpState))
+%     display(LfpState(1:4,1:4))
+    [s,f,t] = mtcsglong(LfpState(:,iCh),nFFT,FsSPA,nFFT,3*nFFT/4);%,1024);
+    display(size(s))
+%     display(size(f))
+%     display(f)
+%     display(s(1:10,1:10))
+    if iCh == 1
+        display(t(2)-t(1),'Time resolution of spectrogram')
+        TsSpec = t(2)-t(1);
+        FsSpec = 1/(t(2)-t(1));
+    end
+    for iFreq = 1:length(FreqBandsSPA)%compute power for freq. bands of interest
+        indFreq = find(f>=fB.(FreqBandsSPA{iFreq})(1) & f<=fB.(FreqBandsSPA{iFreq})(2));
+%         display(indFreq)
+%         display(sum(s(:,indFreq),2))
+        pow.(FreqBandsSPA{iFreq})(:,iCh) = sum(s(:,indFreq),2);
+    end
+end
+
+
+%compute singlular spectrum analysis (SPA)
+% concatenate triggered events on target SPA band (i.e.
+
+for SignCorr = [1,-1]
+    NsampsSPA = floor(Twindow*FsSpec);
+    display(NsampsSPA)
+    for iFreq = 1:length(FreqBandsSPA)
+        szPowState = size(pow.(FreqBandsSPA{iFreq}));
+
+        PowSPA = zeros(szPowState(1),szPowState(2)*2*NsampsSPA);
+        for iCh = 1:nCh
+            for iSPA = 1:NsampsSPA
+                display(iCh)
+                display(iSPA)
+                PowSPA(1:szPowState(1)-iSPA+1,(2*(iCh-1)+1)*NsampsSPA-iSPA+1) = pow.(FreqBandsSPA{iFreq})(iSPA:szPowState(1),iCh);
+
+                PowSPA(iSPA:szPowState(1),(2*(iCh-1)+1)*NsampsSPA+iSPA) = pow.(FreqBandsSPA{iFreq})(1:szPowState(1)-iSPA+1,iCh);
+            end
+        end
+
+
+        for SelectICs = [4,5,7,9,10,11,12,13,14]%1:NumICs %= input('index of IC to further process');
+            %input('multiply activation by ([1]/[-1]) // inverse sign if loadings are not correct (i.e. negative for delta waves)');
+        % 
+        %     SelectICs = input('index of IC to further process');
+        %     SignCorr = input('multiply activation by ([1]/[-1]) // inverse sign if loadings are not correct (i.e. negative for delta waves)');
+            % find selected IC peaks
+
+            ICsig = out.(FreqBandsIC{1}).ICAsig(SelectICs,:)*SignCorr;
+            ICt = [1:length(ICsig)]/Fs;
+
+    %         figure()
+    %         plot(ICt,ICsig)
+
+            Threshold = 2;%input('input the threshold for detection of peaks (it must be positive)');
+
+            [pks,locs] = findpeaks(ICsig, 'MinPeakHeight',Threshold);
+
+
+            if length(pks)<=50
+                continue
+            end
+            pks = pks(1:end-2);
+            locs = locs(1:end-2);
+            % use val of loaded ICs to compute spectrograms
+
+
+            PowEventsSPA = zeros([2*floor(Twindow*FsSpec)+1,length(PowSPA(1,:))]);
+            SampWidthIC = floor(Twindow*Fs);
+            AvIC = zeros([length(-SampWidthIC:SampWidthIC),1]);
+            for iE = 1:length(pks)
+
+                AvIC = AvIC + ICsig(locs(iE)-SampWidthIC:locs(iE)+SampWidthIC)';
+
+                SampsTriggerPower = floor(ICt(locs(iE))*FsSpec);
+
+                sampswindow = [SampsTriggerPower-floor(Twindow*FsSpec):SampsTriggerPower+floor(Twindow*FsSpec)];
+                display(iE)
+                PowSPAzero = [];
+                for iCh = 1:szPowState(2)
+                    PowSPAzero = [PowSPAzero,PowSPA(sampswindow(1),(2*(iCh-1)+1)*NsampsSPA+1)*ones([1,2*NsampsSPA])];
+                end
+                PowEventsSPA((iE-1)*length(sampswindow)+1:iE*length(sampswindow), :) = PowSPA(sampswindow,:)-PowSPAzero;
+
+
+            end
+            AvIC = AvIC/length(pks);
+            out.AvIC = AvIC;
+            out.ICt = [1:2*SampWidthIC+1]/Fs;
+
+                    
+            
+            
+            
+            NumPCs=10;
+            %compute PCA and recover temporal progression.
+            [coeff, ~,~,~,~,~] = pca(PowEventsSPA,'NumComponents', NumPCs);
+
+            coeffSPA = struct();
+            for iPCA = 1:4
+                coeffSPA.(['PC' num2str(iPCA)]) = reshape(coeff(:,iPCA),[2*NsampsSPA,nCh]);
+            %     if iPCA==1
+            %         coeffSPA.(['PC' num2str(1)]) = zeros(size(reshape(coeff(:,iPCA),[2*NsampsSPA,nCh])));
+            %     end
+            %     coeffSPA.(['PC' num2str(1)]) = coeffSPA.(['PC' num2str(1)])+reshape(coeff(:,iPCA),[2*NsampsSPA,nCh]);
+            %     display(iPCA)
+            end
+            out.SPAtime = [1:length(coeffSPA.(['PC' num2str(1)])(:,1))]/FsSpec;
+            out.SPA = coeffSPA;
+
+            save([OutputPath FreqBandsIC{1} '-TimeEmbeddedIC' num2str(SelectICs) '-PeaksSign(' num2str(SignCorr) ').mat'],'out')
+
+            OutputVideo = [OutputPath FreqBandsIC{1} '-TimeEmbeddedIC' num2str(SelectICs) '-PeaksSign(' num2str(SignCorr) ')-spec' (FreqBandsSPA{iFreq}) '.avi'];
+        %     OutputPath = ['../../../data/DB/Files/B13289O14-DH3/GroupsAnalysis/' FreqBandsLow{1} '-AvIC' num2str(SelectICs) '-AvPower' HighFreqCoupling '-spec.avi'];
+            Video_powerbands(out.ICt,out.AvIC',out.SPAtime,out.SPA, OutputVideo, T, indDB)
+
+        end
+    end
+end

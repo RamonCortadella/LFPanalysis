@@ -28,11 +28,18 @@ for i = 1:length(fn)
 %         display(T.(fn{i}){1},'Name')
         ind = [];
         for ii = 1:length(T.(fn{i}))
-            if strcmp(class(Queries.(fn{i})),'cell')
+            if strcmp(class(Queries.(fn{i})),'cell') & Queries.(fn{i}){1}==-1
                 if strcmp(T.(fn{i}){ii},Queries.(fn{i})(2))
                     continue
                 else
                     ind=[ind,ii];
+                end
+            elseif strcmp(class(Queries.(fn{i})),'cell')
+                for iq = 1:length(Queries.(fn{i}))
+                    display(Queries.(fn{i})(iq))
+                    if strcmp(T.(fn{i}){ii},Queries.(fn{i})(iq))
+                        ind=[ind,ii];
+                    end
                 end
             else
                 if strcmp(T.(fn{i}){ii},Queries.(fn{i}))

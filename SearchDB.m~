@@ -16,13 +16,11 @@ for i = 1:length(fn)
 %         display(Queries.(fn{i}),'Query')
 %         display(T.(fn{i}){1},'Name')
 %         display(fn{i})
-        if length(Queries.(fn{i}))>1
-            
+        if strcmp(class(Queries.(fn{i})),'cell')
             ind = find(table2array(T(:,fn(i)))~=Queries.(fn{i}));
-            
-        ind = find(table2array(T(:,fn(i)))==Queries.(fn{i}));
-        
-        
+        else
+            ind = find(table2array(T(:,fn(i)))==Queries.(fn{i})); 
+        end
 %         display(ind)
 %         display(i)
     else
@@ -30,8 +28,18 @@ for i = 1:length(fn)
 %         display(T.(fn{i}){1},'Name')
         ind = [];
         for ii = 1:length(T.(fn{i}))
-            if strcmp(T.(fn{i}){ii},Queries.(fn{i}))
-                ind=[ind,ii];
+            if strcmp(class(Queries.(fn{i})),'cell')
+                if strcmp(T.(fn{i}){ii},Queries.(fn{i})(2))
+                    continue
+                else
+                    ind=[ind,ii];
+                end
+            else
+                for iq = 1:length(Queries.(fn{i}))
+                    if strcmp(T.(fn{i}){ii},Queries.(fn{i}))
+                        ind=[ind,ii];
+                    end
+                end
             end
         end
     end

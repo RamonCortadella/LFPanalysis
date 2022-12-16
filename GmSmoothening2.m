@@ -1,4 +1,4 @@
-function GmSmoothening2(FileName,T,indDB, OutputPath, varargin)
+function GmSmoothening2(FileName,T,indDB, OutputPath,extension, varargin)
 %this function takes an array of signals (1-dimensional - n x m) x time and reduces the
 %gain noise by calculating the ratio between the RMS of nearest/next-nearest
 %neighbours and the central channel. Possible phase inversion (i.e. wrong 
@@ -82,7 +82,7 @@ for it = 1:iterations
     end
     Lfp = LfpCorr;
 
-    SaveBinary(strcat(FileName(1:end-4),'.smooth','.lfp'), Lfp);
+    SaveBinary(strcat(OutputPath,'/',T.RecordingId{indDB},'.smooth',extension), Lfp);
 end
 
     

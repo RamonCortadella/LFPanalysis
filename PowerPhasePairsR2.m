@@ -31,6 +31,7 @@ if nBinsPh>1
     PowMat = zeros(nr, nBinsPow);
 end
 PhMat = zeros(nr, nPhChan, nBinsPh);
+PowLMat = zeros(nr, nPhChan, nBinsPh);
 if FrBinsPh==0
     ph = unwrap(xPh);
     if ResampleNum>1
@@ -50,6 +51,7 @@ else
     for kPh = 1:nBinsPh
         if 0
             ph = angle(hilbert(ButFilter(xPh, 4, FrBinsPh(kPh,:), 'bandpass')));
+            powL = abs(hilbert(ButFilter(xPh, 4, FrBinsPh(kPh,:), 'bandpass')));
             if ResampleNum>1
 
                 ph = unwrap(ph);
@@ -62,8 +64,11 @@ else
 %                 xPh = resample(xPh,1,ResampleNum);
 %             end
             %---------------------------------------------
-
+%             display(FrBinsPh(kPh,:)*ResampleNum)
+%             display(FrBinsPh(kPh,:))
             ph = angle(hilbert(ButFilter(xPh, 2, FrBinsPh(kPh,:)*ResampleNum, 'bandpass')));
+            powL = abs(hilbert(ButFilter(xPh, 2, FrBinsPh(kPh,:), 'bandpass')));
+            
             if UniPhase
                 for kPhCh=1:nPhChan
                     ph(:,kPhCh) =MakeUniformDistr(ph(:,kPhCh),-pi, pi);
@@ -73,8 +78,10 @@ else
         end
         if size(ph,2)==1
             PhMat(:,1,kPh) = ph;
+            PowLMat(:,1,kPh) = powL;
         else
             PhMat(:,:,kPh) = ph;
+            PowLMat(:,:,kPh) = powL;
         end
     end
 end
@@ -103,7 +110,7 @@ for knPow = 1:nPow
         for kPhCh = 1:nPhChan
             for kPh = 1:nBinsPh
                 for kPow=1:nBinsPow
-                    pm = feval(varargin{1},PhMat(:,kPhCh,kPh),PowMat(:,kPow),varargin{2:end});
+                    pm = feval(varargin{1},PhMat(:,kPhCh,kPh),PowLMat(:,kPhCh,kPh),PowMat(:,kPow),varargin{2:end});
                     out = SetStructFields(out,pm,{kPh,kPow,knPow,kPhCh});
                 end
             end
@@ -113,7 +120,7 @@ for knPow = 1:nPow
         for kPow=1:nBinsPow
             tic;
             pow = FilterPower(kPow);
-            pm = feval(varargin{1},PhMat,pow,varargin{2:end});
+            pm = feval(varargin{1},PhMat,PowLMat,pow,varargin{2:end});
             out = SetStructFields(out,pm,{kPow,knPow});
            % fprintf('Freq. bin %d  took %f sec\n',kPow,toc);
         end

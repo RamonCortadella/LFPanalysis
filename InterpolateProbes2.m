@@ -92,5 +92,5 @@ function LfpInterp = InterpolateProbes2(FileName, T,indDB,OutputPath)
         LfpInterp(k,:) = reshape(bF,[],1);
     end
     
-    SaveBinary(strcat(FileName(1:end-4),'.interp','.lfp'), LfpInterp);
+    SaveBinary(strcat(FileName(1:end-4),'.interp.lfp'), LfpInterp);
 end
